@@ -1,0 +1,501 @@
+---
+title: UI Components Reference
+description: Complete reference of all UI components in the MySQL SQL Editor
+---
+
+## Overview
+
+The MySQL SQL Editor uses Java Swing components with a custom color scheme and styling. This reference documents all UI components across the login and editor views.
+
+## Color Scheme
+
+The application uses a consistent color palette across all views:
+
+<CardGroup cols={2}>
+  <Card title="Primary Color" icon="palette">
+    `COLOR_PRIMARIO: #0078D7` (RGB: 0, 120, 215)
+    
+    Used for primary buttons, titles, and borders
+  </Card>
+  
+  <Card title="Secondary Color" icon="palette">
+    `COLOR_SECUNDARIO: #64B4FF` (RGB: 100, 180, 255)
+    
+    Used for secondary buttons and accents
+  </Card>
+  
+  <Card title="Background Color" icon="palette">
+    `COLOR_FONDO: #F5F5F5` (RGB: 245, 245, 245)
+    
+    Used for panel backgrounds
+  </Card>
+  
+  <Card title="Text Color" icon="palette">
+    `COLOR_TEXTO: #3C3C3C` (RGB: 60, 60, 60)
+    
+    Used for general text
+  </Card>
+</CardGroup>
+
+<Note>
+  Additional colors: `COLOR_ERROR: #DC3232` (RGB: 220, 50, 50) for error messages, and `COLOR_BORDE: #C8C8C8` (RGB: 200, 200, 200) for borders.
+</Note>
+
+---
+
+## Login View Components
+
+The login view (`View.java`) provides the initial connection interface to MySQL databases.
+
+### Text Input Fields
+
+<AccordionGroup>
+  <Accordion title="txtUsuario - Username Field">
+    **Type:** `JTextField`
+    
+    **Location:** `View.java:14`, `View.java:83-86`
+    
+    **Properties:**
+    - Font: Segoe UI, Plain, 12pt
+    - Background: White (disabled: `#F0F0F0`)
+    - Width: 20 columns
+    - Trimmed on retrieval via `getUsuario()`
+    
+    **Usage:**
+    ```java
+    String username = loginView.getUsuario();
+    ```
+  </Accordion>
+  
+  <Accordion title="txtPassword - Password Field">
+    **Type:** `JPasswordField`
+    
+    **Location:** `View.java:15`, `View.java:96-99`
+    
+    **Properties:**
+    - Font: Segoe UI, Plain, 12pt
+    - Background: White (disabled: `#F0F0F0`)
+    - Width: 20 columns
+    - Characters masked for security
+    - Trimmed on retrieval via `getPassword()`
+    
+    **Usage:**
+    ```java
+    String password = loginView.getPassword();
+    ```
+  </Accordion>
+</AccordionGroup>
+
+### Combo Boxes
+
+<AccordionGroup>
+  <Accordion title="cmbServidores - Server Selector">
+    **Type:** `JComboBox<String>`
+    
+    **Location:** `View.java:16`, `View.java:70-73`
+    
+    **Properties:**
+    - Font: Segoe UI, Plain, 12pt
+    - Background: White
+    - Default options: `["localhost", "127.0.0.1"]`
+    
+    **Usage:**
+    ```java
+    String server = loginView.getServidor();
+    ```
+  </Accordion>
+  
+  <Accordion title="cbBasesDatos - Database Selector">
+    **Type:** `JComboBox<String>`
+    
+    **Location:** `View.java:17`, `View.java:111-114`
+    
+    **Properties:**
+    - Font: Segoe UI, Plain, 12pt
+    - Background: White
+    - Dynamically populated via `setBasesDatos(List<String>)`
+    - Filters out system databases
+    
+    **Usage:**
+    ```java
+    // Set databases
+    loginView.setBasesDatos(Arrays.asList("mydb", "testdb"));
+    
+    // Get selection
+    String database = loginView.getBaseDatosSeleccionada();
+    ```
+  </Accordion>
+</AccordionGroup>
+
+### Buttons
+
+<AccordionGroup>
+  <Accordion title="btnConectar - Connect Button">
+    **Type:** `JButton`
+    
+    **Location:** `View.java:18`, `View.java:138-139`
+    
+    **Style:** Primary button
+    
+    **Properties:**
+    - Background: `#0078D7`
+    - Foreground: White
+    - Font: Segoe UI, Bold, 12pt
+    - Size: 120×35 pixels
+    - Hover effect: Darker shade of primary color
+    
+    **Behavior:** Validates inputs and initiates database connection
+  </Accordion>
+  
+  <Accordion title="btnSalir - Exit Button">
+    **Type:** `JButton`
+    
+    **Location:** `View.java:19`, `View.java:141-142`
+    
+    **Style:** Secondary button
+    
+    **Properties:**
+    - Background: `#64B4FF`
+    - Foreground: `#3C3C3C`
+    - Font: Segoe UI, Bold, 12pt
+    - Size: 100×35 pixels
+    - Hover effect: Darker shade of secondary color
+    
+    **Behavior:** Exits the application
+  </Accordion>
+  
+  <Accordion title="btnActualizarBases - Refresh Databases Button">
+    **Type:** `JButton`
+    
+    **Location:** `View.java:20`, `View.java:116-118`
+    
+    **Style:** Secondary button
+    
+    **Properties:**
+    - Label: "Actualizar"
+    - Background: `#64B4FF`
+    - Positioned to the right of database selector
+    
+    **Behavior:** Fetches available databases from server without connecting
+  </Accordion>
+</AccordionGroup>
+
+### Labels
+
+<AccordionGroup>
+  <Accordion title="lblTitulo - Title Label">
+    **Type:** `JLabel`
+    
+    **Location:** `View.java:22`, `View.java:55-58`
+    
+    **Properties:**
+    - Text: "CONEXIÓN A MYSQL"
+    - Font: Segoe UI, Bold, 18pt
+    - Foreground: `#0078D7` (primary color)
+    - Alignment: Center
+  </Accordion>
+  
+  <Accordion title="lblEstado - Status Label">
+    **Type:** `JLabel`
+    
+    **Location:** `View.java:21`, `View.java:125-128`
+    
+    **Properties:**
+    - Font: Segoe UI, Plain, 12pt
+    - Foreground: `#DC3232` (error color)
+    - Alignment: Center
+    - Used for displaying error messages
+    
+    **Methods:**
+    - `mostrarError(String mensaje)` - Display error message
+    - `limpiarEstado()` - Clear status message
+  </Accordion>
+</AccordionGroup>
+
+---
+
+## Editor View Components
+
+The editor view (`SqlEditorView.java`) provides the SQL query interface after successful connection.
+
+### Text Areas
+
+<Accordion title="txtConsulta - SQL Query Editor">
+  **Type:** `JTextArea`
+  
+  **Location:** `SqlEditorView.java:18`, `SqlEditorView.java:70-78`
+  
+  **Properties:**
+  - Font: Consolas, Plain, 14pt (monospace)
+  - Size: 10 rows × 60 columns
+  - Tab size: 2 spaces
+  - Line wrap: Enabled
+  - Word wrap: Enabled
+  - Border: Empty padding (5px)
+  
+  **Usage:**
+  ```java
+  String query = editorView.getConsulta();
+  ```
+  
+  <Tip>
+    Double-click a table name in `listaTablas` to auto-generate a SELECT query in this field.
+  </Tip>
+</Accordion>
+
+### Tables
+
+<Accordion title="tblResultados - Results Table">
+  **Type:** `JTable`
+  
+  **Location:** `SqlEditorView.java:19`, `SqlEditorView.java:181-189`
+  
+  **Properties:**
+  - Font: Segoe UI, Plain, 12pt
+  - Row height: 22 pixels
+  - Grid: Hidden
+  - Column width: 150 pixels (default)
+  - Fills viewport height
+  
+  **Usage:**
+  ```java
+  DefaultTableModel model = new DefaultTableModel();
+  // ... populate model ...
+  editorView.setResultados(model);
+  ```
+  
+  Displays query results with dynamic columns based on the result set metadata.
+</Accordion>
+
+### Lists
+
+<Accordion title="listaTablas - Tables List">
+  **Type:** `JList<String>`
+  
+  **Location:** `SqlEditorView.java:24`, `SqlEditorView.java:139-156`
+  
+  **Properties:**
+  - Font: Segoe UI, Plain, 12pt
+  - Background: White
+  - Selection mode: Single selection
+  - Model: `DefaultListModel<String>`
+  - Titled border: "Tablas disponibles"
+  - Size: 220×200 pixels
+  
+  **Behavior:**
+  - Double-click generates `SELECT * FROM <table> LIMIT 100` query
+  - Tooltip: "Doble clic para generar SELECT"
+  
+  **Usage:**
+  ```java
+  List<String> tables = Arrays.asList("users", "products", "orders");
+  editorView.actualizarListaTablas(tables);
+  ```
+</Accordion>
+
+### Buttons
+
+<AccordionGroup>
+  <Accordion title="btnEjecutar - Execute Query Button">
+    **Type:** `JButton`
+    
+    **Location:** `SqlEditorView.java:20`, `SqlEditorView.java:118-120`
+    
+    **Style:** Primary button
+    
+    **Properties:**
+    - Label: "Ejecutar"
+    - Background: `#0078D7`
+    - Foreground: White
+    - Font: Segoe UI, Bold, 12pt
+    - Cursor: Hand cursor
+    - Hover effect: Darker primary color
+    
+    **Behavior:** Executes SQL query from `txtConsulta`
+  </Accordion>
+  
+  <Accordion title="btnLimpiar - Clear Button">
+    **Type:** `JButton`
+    
+    **Location:** `SqlEditorView.java:21`, `SqlEditorView.java:122-124`
+    
+    **Style:** Secondary button
+    
+    **Properties:**
+    - Label: "Limpiar"
+    - Background: `#64B4FF`
+    - Foreground: `#3C3C3C`
+    
+    **Behavior:** Clears query text, results table, and system message
+  </Accordion>
+  
+  <Accordion title="btnRefrescarTablas - Refresh Tables Button">
+    **Type:** `JButton`
+    
+    **Location:** `SqlEditorView.java:22`, `SqlEditorView.java:126-128`
+    
+    **Style:** Secondary button
+    
+    **Properties:**
+    - Label: "Refrescar tablas"
+    - Background: `#64B4FF`
+    
+    **Behavior:** Reloads table list from current database
+  </Accordion>
+  
+  <Accordion title="btnCambiarBD - Change Database Button">
+    **Type:** `JButton`
+    
+    **Location:** `SqlEditorView.java:27`, `SqlEditorView.java:106-108`
+    
+    **Style:** Secondary button
+    
+    **Properties:**
+    - Label: "Cambiar BD"
+    - Background: `#64B4FF`
+    - Layout: Grid layout (1×2 with 5px gap)
+    
+    **Behavior:** Shows confirmation dialog, then disconnects and returns to login view
+  </Accordion>
+</AccordionGroup>
+
+### Text Fields
+
+<Accordion title="txtBaseDeDatos - Database Status Field">
+  **Type:** `JTextField`
+  
+  **Location:** `SqlEditorView.java:23`, `SqlEditorView.java:87-97`
+  
+  **Properties:**
+  - Editable: False (read-only)
+  - Font: Segoe UI, Plain, 12pt
+  - Background: `#E6F0FF` (light blue)
+  - Border: 1px line with 5-8px padding
+  - Height: 35 pixels
+  
+  **Display States:**
+  - Connected: "Conectado a: {database_name}"
+  - Disconnected: "Estado: No conectado"
+  
+  **Usage:**
+  ```java
+  editorView.setBaseDeDatos("my_database");
+  editorView.setBaseDeDatos(null); // Show disconnected
+  ```
+</Accordion>
+
+### Labels
+
+<Accordion title="lblMensajeSistema - System Message Label">
+  **Type:** `JLabel`
+  
+  **Location:** `SqlEditorView.java:26`, `SqlEditorView.java:191-194`
+  
+  **Properties:**
+  - Font: Segoe UI, Plain, 12pt
+  - Foreground: Dark gray
+  - Border: Empty padding (5px top/bottom)
+  - Position: Top of results panel
+  
+  **Usage:**
+  ```java
+  editorView.setMensajeSistema("Consulta ejecutada correctamente");
+  editorView.setMensajeSistema("Error: " + exception.getMessage());
+  ```
+  
+  Displays execution status, row counts, or error messages.
+</Accordion>
+
+---
+
+## Button Styling
+
+Both views use a consistent button styling method:
+
+### Primary Buttons
+
+**Source:** `View.java:157-183`, `SqlEditorView.java:206-227`
+
+```java
+private void estilizarBoton(JButton boton, boolean primario)
+```
+
+**Primary Button Style:**
+- Background: `#0078D7`
+- Foreground: White
+- Font: Segoe UI, Bold
+- No focus painting or border painting
+- Hover: Darker shade of primary color
+
+**Secondary Button Style:**
+- Background: `#64B4FF`
+- Foreground: `#3C3C3C`
+- Font: Segoe UI, Bold
+- Hover: Darker shade of secondary color
+
+<Warning>
+  All buttons have `setFocusPainted(false)` and `setBorderPainted(false)` for a modern flat design.
+</Warning>
+
+---
+
+## UI State Management
+
+<Accordion title="bloquearInterfaz - Interface Locking">
+  **Method:** `View.bloquearInterfaz(boolean bloquear)`
+  
+  **Location:** `View.java:239-252`
+  
+  **Purpose:** Disables/enables all input components during async operations
+  
+  **Affected Components:**
+  - `cmbServidores`
+  - `txtUsuario`
+  - `txtPassword`
+  - `cbBasesDatos`
+  - `btnActualizarBases`
+  - `btnConectar`
+  
+  **Visual Changes:**
+  - Background changes to `#F0F0F0` when locked
+  - Background returns to White when unlocked
+  
+  **Usage:**
+  ```java
+  loginView.bloquearInterfaz(true);  // Lock during operation
+  // ... perform async operation ...
+  loginView.bloquearInterfaz(false); // Unlock after completion
+  ```
+  
+  <Tip>
+    This prevents users from modifying inputs during database connection or query execution.
+  </Tip>
+</Accordion>
+
+---
+
+## Layout Details
+
+### Login View Layout
+
+**Layout Manager:** `GridBagLayout`
+
+**Panel Configuration:**
+- Border: `EmptyBorder(15, 20, 15, 20)`
+- Insets: `8px` on all sides
+- Fill: Horizontal
+- Weight X: 1
+
+### Editor View Layout
+
+**Layout Manager:** `BorderLayout` with `JSplitPane`
+
+**Split Configuration:**
+- Orientation: Vertical
+- Resize weight: 0.35 (35% top, 65% bottom)
+- Divider size: 3 pixels
+
+**Fonts Used:**
+- Normal: Segoe UI, Plain, 12pt
+- Monospace: Consolas, Plain, 14pt
+- Title: Segoe UI, Bold, 14pt

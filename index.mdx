@@ -1,97 +1,114 @@
 ---
-title: "Introduction"
-description: "Welcome to the new home for your documentation"
+title: "MySQL SQL Editor"
+description: "A powerful desktop application for managing MySQL databases with an intuitive visual interface"
 ---
 
-## Setting up
+## Welcome to MySQL SQL Editor
 
-Get your documentation site up and running in minutes.
+MySQL SQL Editor is a Java-based desktop application that provides a clean and efficient way to connect to MySQL databases, write and execute SQL queries, and visualize results in a user-friendly interface.
 
-<Card
-  title="Start here"
-  icon="rocket"
-  href="/quickstart"
-  horizontal
->
-  Follow our three step quickstart guide.
-</Card>
-
-## Make it yours
-
-Design a docs site that looks great and empowers your users.
-
-<Columns cols={2}>
+<CardGroup cols={2}>
   <Card
-    title="Edit locally"
-    icon="pen-to-square"
-    href="/development"
+    title="Quick Start"
+    icon="rocket"
+    href="/quickstart"
   >
-    Edit your docs locally and preview them in real time.
+    Get up and running in minutes with your first database connection
   </Card>
   <Card
-    title="Customize your site"
-    icon="palette"
-    href="/essentials/settings"
+    title="Installation Guide"
+    icon="download"
+    href="/installation"
   >
-    Customize the design and colors of your site to match your brand.
-  </Card>
-    <Card
-    title="Set up navigation"
-    icon="map"
-    href="/essentials/navigation"
-  >
-    Organize your docs to help users find what they need and succeed with your product.
+    Learn how to install and set up the application
   </Card>
   <Card
-    title="API documentation"
-    icon="terminal"
-    href="/api-reference/introduction"
+    title="User Guide"
+    icon="book-open"
+    href="/guide/connecting"
   >
-    Auto-generate API documentation from OpenAPI specifications.
-  </Card>
-</Columns>
-
-## Create beautiful pages
-
-Everything you need to create world-class documentation.
-
-<Columns cols={2}>
-  <Card
-    title="Write with MDX"
-    icon="pen-fancy"
-    href="/essentials/markdown"
-  >
-    Use MDX to style your docs pages.
+    Explore features for connecting and querying databases
   </Card>
   <Card
-    title="Code samples"
+    title="Architecture"
+    icon="sitemap"
+    href="/architecture/overview"
+  >
+    Understand the MVC architecture and component design
+  </Card>
+</CardGroup>
+
+## Key Features
+
+<CardGroup cols={3}>
+  <Card
+    title="Database Connection"
+    icon="plug"
+  >
+    Connect to MySQL servers with secure authentication and browse available databases
+  </Card>
+  <Card
+    title="SQL Query Editor"
     icon="code"
-    href="/essentials/code"
   >
-    Add sample code to demonstrate how to use your product.
+    Write and execute SQL queries with a clean, monospace editor interface
   </Card>
   <Card
-    title="Images"
-    icon="image"
-    href="/essentials/images"
+    title="Visual Results"
+    icon="table"
   >
-    Display images and other media.
+    View query results in an organized tabular format with column headers
   </Card>
   <Card
-    title="Reusable snippets"
-    icon="recycle"
-    href="/essentials/reusable-snippets"
+    title="Table Browser"
+    icon="folder-tree"
   >
-    Write once and reuse across your docs.
+    Browse database tables with a visual list and quick-select functionality
   </Card>
-</Columns>
+  <Card
+    title="Connection Management"
+    icon="arrows-rotate"
+  >
+    Switch between databases and manage multiple connections efficiently
+  </Card>
+  <Card
+    title="Query Support"
+    icon="database"
+  >
+    Execute SELECT, INSERT, UPDATE, DELETE, and other SQL statements
+  </Card>
+</CardGroup>
 
-## Need inspiration?
+## Technology Stack
+
+MySQL SQL Editor is built with:
+
+- **Java Swing** — Modern desktop UI framework
+- **JDBC** — Database connectivity via MySQL Connector/J 9.2.0
+- **MVC Pattern** — Clean separation of concerns for maintainability
+- **SwingWorker** — Asynchronous database operations for responsive UI
+
+## Getting Started
+
+<Steps>
+  <Step title="Install Java">
+    Ensure you have Java 8 or higher installed on your system
+  </Step>
+  <Step title="Download the Application">
+    Clone the repository or download the release package
+  </Step>
+  <Step title="Launch and Connect">
+    Run the application and connect to your MySQL database
+  </Step>
+  <Step title="Start Querying">
+    Write your first SQL query and execute it to see results
+  </Step>
+</Steps>
 
 <Card
-  title="See complete examples"
-  icon="stars"
-  href="https://mintlify.com/customers"
+  title="View on GitHub"
+  icon="github"
+  href="https://github.com/Xeak1990/ProyectoFinal"
 >
-  Browse our showcase of exceptional documentation sites.
+  Explore the source code and contribute to the project
 </Card>

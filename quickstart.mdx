@@ -1,80 +1,464 @@
 ---
-title: "Quickstart"
-description: "Start building awesome documentation in minutes"
+title: "Quick Start"
+description: "Get started with MySQL SQL Editor in minutes—from launching to executing your first query"
 ---
 
-## Get started in three steps
+## Overview
 
-Get your documentation site running locally and make your first customization.
+This guide will walk you through using MySQL SQL Editor for the first time. You'll learn how to launch the application, connect to a MySQL database, browse tables, write queries, and view results.
 
-### Step 1: Set up your local environment
+<Info>
+  Before starting, make sure you've completed the [Installation](/installation) steps and have a running MySQL server with at least one non-system database.
+</Info>
 
-<AccordionGroup>
-  <Accordion icon="copy" title="Clone your docs locally">
-    During the onboarding process, you created a GitHub repository with your docs content if you didn't already have one. You can find a link to this repository in your [dashboard](https://dashboard.mintlify.com).
+## Launch the Application
+
+<Steps>
+  <Step title="Start MySQL SQL Editor">
+    From your project directory, run the application:
+
+    ```bash
+    java -cp "bin:lib/mysql-connector-j-9.2.0.jar" com.app.Main
+    ```
+
+    On Windows:
+    ```bash
+    java -cp "bin;lib/mysql-connector-j-9.2.0.jar" com.app.Main
+    ```
+
+    The login window titled **"Conexión a MySQL"** will appear with a clean interface styled in the application's primary color (#0078D7).
+
+    <Tip>
+      Create a shell script or batch file to simplify launching:
+      
+      **Linux/macOS (`run.sh`):**
+      ```bash
+      #!/bin/bash
+      java -cp "bin:lib/mysql-connector-j-9.2.0.jar" com.app.Main
+      ```
+      
+      **Windows (`run.bat`):**
+      ```batch
+      @echo off
+      java -cp "bin;lib/mysql-connector-j-9.2.0.jar" com.app.Main
+      ```
+    </Tip>
+  </Step>
+
+  <Step title="Enter MySQL Credentials">
+    In the login window, you'll see several input fields:
+
+    1. **Servidor** — Select your MySQL server host:
+       - `localhost` (if MySQL is running on your machine)
+       - `127.0.0.1` (loopback address)
+       - Or a custom remote host (requires modification in `View.java`)
+
+    2. **Usuario** — Enter your MySQL username (e.g., `root`, `admin`, or your custom user)
+
+    3. **Contraseña** — Enter the password for your MySQL user
+
+    <Warning>
+      The application requires valid credentials with sufficient privileges to list and query databases. Ensure your user has at least `SELECT` privileges.
+    </Warning>
+  </Step>
+
+  <Step title="Load Available Databases">
+    Before connecting, click the **"Actualizar"** button next to the **Base de datos** dropdown.
+
+    This triggers the `cargarBasesDatos()` method in `Controller.java`, which:
+    - Connects to the MySQL server using your credentials
+    - Executes `SHOW DATABASES` to retrieve all available databases
+    - Filters out system databases (`information_schema`, `mysql`, `performance_schema`, `sys`)
+    - Populates the dropdown with accessible databases
+
+    ```java
+    // From Model.java:26-42
+    public List<String> obtenerTodasLasBasesDatos(String host, String usuario, String password) 
+        throws SQLException {
+        List<String> basesDatos = new ArrayList<>();
+        String url = "jdbc:mysql://" + host + ":3306/?useSSL=false";
+        
+        try (Connection conn = DriverManager.getConnection(url, usuario, password);
+             Statement stmt = conn.createStatement();
+             ResultSet rs = stmt.executeQuery("SHOW DATABASES")) {
+            
+            while (rs.next()) {
+                String nombreBD = rs.getString(1);
+                if (!nombreBD.matches("information_schema|mysql|performance_schema|sys")) {
+                    basesDatos.add(nombreBD);
+                }
+            }
+        }
+        return basesDatos;
+    }
+    ```
+
+    <Info>
+      The application uses **SwingWorker** to perform database operations asynchronously, keeping the UI responsive during network calls.
+    </Info>
+
+    After a few seconds, you should see a success message: **"Bases de datos actualizadas correctamente"**.
+  </Step>
+
+  <Step title="Select a Database">
+    From the **Base de datos** dropdown, select the database you want to work with.
+
+    If you don't have any databases yet, create one in MySQL first:
+
+    ```sql
+    CREATE DATABASE sample_db;
+    USE sample_db;
+    CREATE TABLE users (
+      id INT PRIMARY KEY AUTO_INCREMENT,
+      name VARCHAR(100),
+      email VARCHAR(100)
+    );
+    INSERT INTO users (name, email) VALUES 
+      ('Alice', 'alice@example.com'),
+      ('Bob', 'bob@example.com');
+    ```
+  </Step>
+
+  <Step title="Connect to the Database">
+    Click the **"Conectar"** button to establish a connection.
+
+    The application will:
+    - Validate that all required fields are filled
+    - Call `modelo.conectar()` to establish a JDBC connection
+    - Retrieve the list of tables in the selected database using `DatabaseMetaData`
+    - Hide the login window and display the **SQL Editor** view
+
+    ```java
+    // From Model.java:53-59
+    public void conectar(String host, String database, String usuario, String password) 
+        throws SQLException {
+        conexion = DriverManager.getConnection(
+            "jdbc:mysql://" + host + ":3306/" + database + "?useSSL=false",
+            usuario,
+            password
+        );
+    }
+    ```
+
+    Upon successful connection, you'll see the main SQL Editor window.
+  </Step>
+</Steps>
+
+## Explore the SQL Editor Interface
+
+The SQL Editor window (**SqlEditorView**) is divided into several key areas:
+
+### Top Section: Connection Info & Controls
+
+- **Connection Status Field** — Shows "Conectado a: [database_name]" indicating the active database
+- **Cambiar BD Button** — Disconnect and return to the login screen to switch databases
+
+### Left Section: SQL Query Editor
+
+- **Editor SQL Panel** — Large text area with Consolas monospace font for writing SQL queries
+- **Ejecutar Button** (Primary blue button) — Executes the SQL query in the editor
+- **Limpiar Button** — Clears the query editor, results table, and system messages
+- **Refrescar tablas Button** — Refreshes the list of tables in the right panel
+
+### Right Section: Table Browser
+
+- **Tablas disponibles** — A list showing all tables in the connected database
+- **Double-click functionality** — Double-clicking a table name auto-generates a `SELECT * FROM [table] LIMIT 100` query
+
+```java
+// From SqlEditorView.java:146-156
+listaTablas.addMouseListener(new MouseAdapter() {
+    public void mouseClicked(MouseEvent evt) {
+        if (evt.getClickCount() == 2) {
+            String tablaSeleccionada = listaTablas.getSelectedValue();
+            if (tablaSeleccionada != null) {
+                String consulta = "SELECT * FROM " + tablaSeleccionada + " LIMIT 100";
+                txtConsulta.setText(consulta);
+            }
+        }
+    }
+});
+```
+
+### Bottom Section: Results Display
+
+- **Resultados Panel** — Table view displaying query results with columns and rows
+- **Mensaje del sistema Label** — Shows status messages like "Consulta ejecutada correctamente" or error details
+
+## Execute Your First Query
+
+<Steps>
+  <Step title="Write a SELECT Query">
+    In the **Editor SQL** text area, type a simple query:
+
+    ```sql
+    SELECT * FROM users;
+    ```
+
+    <Tip>
+      Or double-click a table name in the **Tablas disponibles** list to auto-generate a SELECT query with LIMIT 100.
+    </Tip>
+  </Step>
+
+  <Step title="Execute the Query">
+    Click the **"Ejecutar"** button (primary blue button on the right side).
+
+    The application will:
+    1. Validate that the query is not empty
+    2. Execute the query using `modelo.ejecutarConsulta()`
+    3. Parse the `ResultSet` and build a `DefaultTableModel`
+    4. Display results in the **Resultados** table
+    5. Show "Consulta ejecutada correctamente" in the system message label
+
+    ```java
+    // From Model.java:106-122 (SELECT query handling)
+    if (trimmedQuery.startsWith("select")) {
+        try (ResultSet rs = stmt.executeQuery(query)) {
+            ResultSetMetaData meta = rs.getMetaData();
+            int columnas = meta.getColumnCount();
+            
+            for (int i = 1; i <= columnas; i++) {
+                modelo.addColumn(meta.getColumnName(i));
+            }
+            
+            while (rs.next()) {
+                Object[] fila = new Object[columnas];
+                for (int i = 0; i < columnas; i++) {
+                    fila[i] = rs.getObject(i + 1);
+                }
+                modelo.addRow(fila);
+            }
+        }
+    }
+    ```
+  </Step>
+
+  <Step title="View Results">
+    The results appear in the **Resultados** panel with:
+    - Column headers extracted from the ResultSetMetaData
+    - All rows returned by your query
+    - Organized in a clean table format with 22px row height
+
+    <Info>
+      For large result sets, the table automatically adds a scrollbar. Results are displayed with zero grid spacing for a clean, modern look.
+    </Info>
+  </Step>
+</Steps>
+
+## Try Different Query Types
+
+MySQL SQL Editor supports all SQL statement types. Let's explore common operations:
+
+### INSERT Query
+
+Add new data to your table:
+
+```sql
+INSERT INTO users (name, email) VALUES ('Charlie', 'charlie@example.com');
+```
+
+After executing an `INSERT` query, the application automatically:
+1. Executes the statement using `stmt.executeUpdate()`
+2. Extracts the table name from the query
+3. Re-queries the table with `SELECT * FROM users`
+4. Displays the updated table contents
+
+<Tip>
+  This automatic refresh lets you immediately see your inserted data without manually re-running a SELECT query.
+</Tip>
+
+### UPDATE Query
+
+Modify existing records:
+
+```sql
+UPDATE users SET email = 'alice.new@example.com' WHERE name = 'Alice';
+```
+
+The application will show the updated table contents and display "Filas afectadas: 1" in the results.
+
+### DELETE Query
+
+Remove records from a table:
+
+```sql
+DELETE FROM users WHERE id = 3;
+```
+
+### CREATE TABLE Query
+
+Define new table structures:
+
+```sql
+CREATE TABLE products (
+  id INT PRIMARY KEY AUTO_INCREMENT,
+  name VARCHAR(100),
+  price DECIMAL(10, 2)
+);
+```
+
+After creating a table, click **"Refrescar tablas"** to update the table list in the right panel.
+
+## Browse Tables with Quick Select
+
+<Steps>
+  <Step title="View Available Tables">
+    The **Tablas disponibles** panel on the right shows all tables in your connected database.
+
+    This list is populated by calling `modelo.obtenerTablasDeBaseDatos()`:
+
+    ```java
+    // From Model.java:78-90
+    public List<String> obtenerTablasDeBaseDatos() throws SQLException {
+        List<String> tablas = new ArrayList<>();
+        if (conexion != null && !conexion.isClosed()) {
+            DatabaseMetaData metaData = conexion.getMetaData();
+            String catalogoActual = conexion.getCatalog();
+            try (ResultSet rs = metaData.getTables(catalogoActual, null, "%", new String[]{"TABLE"})) {
+                while (rs.next()) {
+                    tablas.add(rs.getString("TABLE_NAME"));
+                }
+            }
+        }
+        return tablas;
+    }
+    ```
+  </Step>
+
+  <Step title="Generate Query with Double-Click">
+    **Double-click** any table name in the list.
+
+    The application automatically generates and inserts this query into the editor:
+
+    ```sql
+    SELECT * FROM [table_name] LIMIT 100
+    ```
+
+    <Info>
+      The LIMIT 100 clause prevents accidentally loading massive datasets into the UI, keeping the application responsive.
+    </Info>
+  </Step>
+
+  <Step title="Execute the Generated Query">
+    Simply click **"Ejecutar"** to run the auto-generated query and view the table contents.
+  </Step>
+</Steps>
+
+## Clear and Reset
+
+To start fresh:
+
+1. Click the **"Limpiar"** button
+2. This clears:
+   - The SQL query editor
+   - The results table
+   - Any system messages
+
+```java
+// From SqlEditorView.java:281-285
+public void limpiar() {
+    txtConsulta.setText("");
+    tblResultados.setModel(new DefaultTableModel());
+    lblMensajeSistema.setText(" ");
+}
+```
+
+## Switch Databases
+
+To connect to a different database:
+
+<Steps>
+  <Step title="Click 'Cambiar BD'">
+    Click the **"Cambiar BD"** button in the top-right area.
+  </Step>
+
+  <Step title="Confirm Disconnection">
+    A confirmation dialog appears: **"¿Desea desconectarse y cambiar de base de datos?"**
     
-    To clone the repository locally so that you can make and preview changes to your docs, follow the [Cloning a repository](https://docs.github.com/en/repositories/creating-and-managing-repositories/cloning-a-repository) guide in the GitHub docs.
-  </Accordion>
-  <Accordion icon="rectangle-terminal" title="Start the preview server">
-    1. Install the Mintlify CLI: `npm i -g mint`
-    2. Navigate to your docs directory and run: `mint dev`
-    3. Open `http://localhost:3000` to see your docs live!
+    Click **Yes** to proceed.
+  </Step>
+
+  <Step title="Return to Login">
+    The SQL Editor window closes, and you return to the login screen.
     
-    <Tip>Your preview updates automatically as you edit files.</Tip>
-  </Accordion>
-</AccordionGroup>
+    The application calls `modelo.desconectar()` to properly close the JDBC connection:
 
-### Step 2: Deploy your changes
+    ```java
+    // From Model.java:66-70
+    public void desconectar() throws SQLException {
+        if (conexion != null && !conexion.isClosed()) {
+            conexion.close();
+        }
+    }
+    ```
+  </Step>
 
-<AccordionGroup>
-  <Accordion icon="github" title="Install our GitHub app">
-    Install the Mintlify GitHub app from your [dashboard](https://dashboard.mintlify.com/settings/organization/github-app).
-    
-    Our GitHub app automatically deploys your changes to your docs site, so you don't need to manage deployments yourself.
-</Accordion>
-<Accordion icon="palette" title="Update your site name and colors">
-    For a first change, let's update the name and colors of your docs site.
+  <Step title="Connect to New Database">
+    Select a different database from the dropdown and click **"Conectar"** again.
+  </Step>
+</Steps>
 
-    1. Open `docs.json` in your editor.
-    2. Change the `"name"` field to your project name.
-    3. Update the `"colors"` to match your brand.
-    4. Save and see your changes instantly at `http://localhost:3000`.
+## Error Handling
 
-    <Tip>Try changing the primary color to see an immediate difference!</Tip>
-  </Accordion>
-</AccordionGroup>
+The application provides clear error messages for common issues:
 
-### Step 3: Go live
+### Empty Query Error
 
-<Accordion icon="rocket" title="Publish your docs">
-  1. Commit and push your changes.
-  2. Your docs will update and be live in moments!
-</Accordion>
+If you click **"Ejecutar"** without writing a query, you'll see:
 
-## Next steps
+<Warning>
+  **"Ingrese una consulta SQL"** warning dialog
+</Warning>
 
-Now that you have your docs running, explore these key features:
+### SQL Syntax Errors
+
+If your query has syntax errors, the application displays:
+
+- An error dialog with the MySQL error message
+- The system message label shows: **"Error: [error details]"**
+
+### Connection Issues
+
+If the connection to MySQL is lost, error dialogs appear with detailed messages from the JDBC driver.
+
+## Tips for Efficient Use
 
 <CardGroup cols={2}>
-
-<Card title="Write Content" icon="pen-to-square" href="/essentials/markdown">
-  Learn MDX syntax and start writing your documentation.
-</Card>
-
-<Card title="Customize style" icon="palette" href="/essentials/settings">
-  Make your docs match your brand perfectly.
-</Card>
-
-<Card title="Add code examples" icon="square-code" href="/essentials/code">
-  Include syntax-highlighted code blocks.
-</Card>
-
-<Card title="API documentation" icon="code" href="/api-reference/introduction">
-  Auto-generate API docs from OpenAPI specs.
-</Card>
-
+  <Card title="Use Double-Click" icon="mouse-pointer">
+    Double-click table names to instantly generate SELECT queries—saves typing and reduces errors
+  </Card>
+  <Card title="Limit Large Queries" icon="filter">
+    Always use LIMIT clauses when querying large tables to keep the UI responsive
+  </Card>
+  <Card title="Refresh Tables" icon="rotate">
+    After CREATE TABLE or DROP TABLE operations, click **"Refrescar tablas"** to update the table list
+  </Card>
+  <Card title="Check System Messages" icon="message">
+    Watch the system message label for execution status and row counts
+  </Card>
 </CardGroup>
 
-<Note>
-  **Need help?** See our [full documentation](https://mintlify.com/docs) or join our [community](https://mintlify.com/community).
-</Note>
+## Next Steps
+
+Now that you've mastered the basics, explore more advanced topics:
+
+<CardGroup cols={2}>
+  <Card
+    title="User Guide"
+    icon="book-open"
+    href="/guide/connecting"
+  >
+    Learn advanced connection management and database operations
+  </Card>
+  <Card
+    title="Architecture"
+    icon="sitemap"
+    href="/architecture/overview"
+  >
+    Understand how the MVC pattern powers the application
+  </Card>
+</CardGroup>
+
+<Tip>
+  **Pro tip:** The application's asynchronous architecture using SwingWorker ensures the UI never freezes during long-running queries. You can always monitor progress through the system message label.
+</Tip>

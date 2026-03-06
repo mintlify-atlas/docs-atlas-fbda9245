@@ -1,0 +1,216 @@
+---
+title: "Connecting to MySQL"
+description: "Learn how to establish a connection to your MySQL database server"
+icon: "plug"
+---
+
+This guide walks you through the process of connecting to a MySQL database using the SQL Editor's login interface.
+
+## Connection Form
+
+The login view (`View.java`) provides a comprehensive form for establishing database connections with the following fields:
+
+<CardGroup cols={2}>
+  <Card title="Server" icon="server">
+    Select the MySQL server address. Defaults include `localhost` and `127.0.0.1`.
+  </Card>
+  <Card title="User" icon="user">
+    Enter your MySQL username for authentication.
+  </Card>
+  <Card title="Password" icon="key">
+    Provide the password associated with your MySQL user account.
+  </Card>
+  <Card title="Database" icon="database">
+    Choose the target database from the dropdown list.
+  </Card>
+</CardGroup>
+
+## Step-by-Step Connection Process
+
+<Steps>
+  <Step title="Enter Server Credentials">
+    Fill in the **Server**, **User**, and **Password** fields in the login form. The server field allows you to select from predefined options or enter a custom address.
+
+    ```java
+    // The View class retrieves these values:
+    public String getUsuario() { return txtUsuario.getText().trim(); }
+    public String getPassword() { return new String(txtPassword.getPassword()).trim(); }
+    public String getServidor() { return (String) cmbServidores.getSelectedItem(); }
+    ```
+  </Step>
+
+  <Step title="Fetch Available Databases">
+    Click the **Actualizar** (Refresh) button to retrieve all available databases from the server. This calls `Model.obtenerTodasLasBasesDatos()`.
+
+    ```java
+    // Controller.java - Line 115
+    return modelo.obtenerTodasLasBasesDatos(
+        loginView.getServidor(),
+        loginView.getUsuario(),
+        loginView.getPassword()
+    );
+    ```
+
+    <Info>
+      The application automatically filters out system databases (`information_schema`, `mysql`, `performance_schema`, `sys`) from the list.
+    </Info>
+  </Step>
+
+  <Step title="Select a Database">
+    Once the databases load successfully, choose your target database from the dropdown menu. The dropdown is populated with the fetched database names:
+
+    ```java
+    // View.java - Line 213
+    public void setBasesDatos(List<String> bases) {
+        cbBasesDatos.removeAllItems();
+        bases.forEach(cbBasesDatos::addItem);
+    }
+    ```
+  </Step>
+
+  <Step title="Connect">
+    Click the **Conectar** (Connect) button to establish the connection. The application validates your inputs and attempts to connect:
+
+    ```java
+    // Controller.java - Line 155
+    modelo.conectar(
+        loginView.getServidor(),
+        loginView.getBaseDatosSeleccionada(),
+        loginView.getUsuario(),
+        loginView.getPassword()
+    );
+    ```
+
+    Upon successful connection, the SQL Editor window opens, and the available tables are loaded automatically.
+  </Step>
+</Steps>
+
+## Validation and Error Handling
+
+The application performs comprehensive validation before attempting to connect:
+
+### Field Validation
+
+The `validarCamposLogin()` method in `Controller.java` checks:
+
+<Accordion title="User Validation">
+  ```java
+  // Controller.java - Line 85
+  if(loginView.getUsuario().isEmpty()) {
+      loginView.mostrarError("El usuario es requerido");
+      return false;
+  }
+  ```
+  Ensures the username field is not empty.
+</Accordion>
+
+<Accordion title="Password Validation">
+  ```java
+  // Controller.java - Line 90
+  if(loginView.getPassword().isEmpty()) {
+      loginView.mostrarError("La contraseña es requerida");
+      return false;
+  }
+  ```
+  Ensures the password field is not empty.
+</Accordion>
+
+<Accordion title="Database Selection Validation">
+  ```java
+  // Controller.java - Line 95
+  if(!soloCredenciales && loginView.getBaseDatosSeleccionada() == null) {
+      loginView.mostrarError("Debe seleccionar una base de datos");
+      return false;
+  }
+  ```
+  Ensures a database is selected before connecting.
+</Accordion>
+
+### Error Messages
+
+<Warning>
+  If the connection fails, error messages are displayed in the status label:
+  
+  ```java
+  // Controller.java - Line 180
+  loginView.mostrarError("Error de conexión: " + ex.getMessage());
+  ```
+  
+  Common errors include:
+  - Invalid credentials
+  - Server not reachable
+  - Database access denied
+  - Network connectivity issues
+</Warning>
+
+## Connection URL Format
+
+The application constructs MySQL JDBC connection URLs in the following format:
+
+```java
+// Model.java - Line 54
+"jdbc:mysql://" + host + ":3306/" + database + "?useSSL=false"
+```
+
+<Note>
+  The default port `3306` is used for all MySQL connections. SSL is disabled by default with the `useSSL=false` parameter.
+</Note>
+
+## Background Processing
+
+All connection operations are performed asynchronously using `SwingWorker` to prevent UI freezing:
+
+```java
+// Controller.java - Line 112
+SwingWorker<List<String>, Void> worker = new SwingWorker<>() {
+    @Override
+    protected List<String> doInBackground() throws Exception {
+        return modelo.obtenerTodasLasBasesDatos(
+            loginView.getServidor(),
+            loginView.getUsuario(),
+            loginView.getPassword()
+        );
+    }
+};
+```
+
+<Tip>
+  During connection operations, the interface is temporarily disabled to prevent multiple simultaneous connection attempts:
+  
+  ```java
+  // View.java - Line 239
+  public void bloquearInterfaz(boolean bloquear) {
+      cmbServidores.setEnabled(!bloquear);
+      txtUsuario.setEnabled(!bloquear);
+      txtPassword.setEnabled(!bloquear);
+      // ... additional components
+  }
+  ```
+</Tip>
+
+## Success Confirmation
+
+When databases are successfully fetched, you'll see a confirmation dialog:
+
+```java
+// Controller.java - Line 132
+JOptionPane.showMessageDialog(loginView,
+    "Bases de datos actualizadas correctamente",
+    "Éxito", JOptionPane.INFORMATION_MESSAGE);
+```
+
+After a successful connection, the login window closes and the SQL Editor interface appears with:
+- The connected database name displayed
+- A list of available tables
+- The SQL query editor ready for use
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Writing Queries" icon="code" href="/guide/writing-queries">
+    Learn how to write and execute SQL queries
+  </Card>
+  <Card title="Managing Connections" icon="plug-circle-check" href="/guide/managing-connections">
+    Switch databases and manage your active connection
+  </Card>
+</CardGroup>

@@ -1,0 +1,383 @@
+---
+title: "Viewing Query Results"
+description: "Understand how query results are displayed and interact with the results table"
+icon: "table"
+---
+
+The MySQL SQL Editor displays query results in an intuitive table format with different behaviors for SELECT and data modification queries.
+
+## Results Table Component
+
+Query results are displayed in the `tblResultados` JTable component:
+
+```java
+// SqlEditorView.java - Line 181
+tblResultados = new JTable();
+tblResultados.setFont(FUENTE_NORMAL);
+tblResultados.setRowHeight(22);
+tblResultados.setShowGrid(false);
+tblResultados.setIntercellSpacing(new Dimension(0, 0));
+tblResultados.setFillsViewportHeight(true);
+```
+
+<Info>
+  The results table uses a clean design with no grid lines and fills the entire viewport height for optimal viewing.
+</Info>
+
+## SELECT Query Results
+
+When you execute a SELECT query, results are displayed as a data grid with columns and rows:
+
+### Result Set Processing
+
+```java
+// Model.java - Line 106
+if (trimmedQuery.startsWith("select")) {
+    try (ResultSet rs = stmt.executeQuery(query)) {
+        ResultSetMetaData meta = rs.getMetaData();
+        int columnas = meta.getColumnCount();
+
+        // Add column headers
+        for (int i = 1; i <= columnas; i++) {
+            modelo.addColumn(meta.getColumnName(i));
+        }
+
+        // Add data rows
+        while (rs.next()) {
+            Object[] fila = new Object[columnas];
+            for (int i = 0; i < columnas; i++) {
+                fila[i] = rs.getObject(i + 1);
+            }
+            modelo.addRow(fila);
+        }
+    }
+}
+```
+
+<Steps>
+  <Step title="Column Headers">
+    The first row displays column names extracted from `ResultSetMetaData`:
+
+    ```java
+    // Model.java - Line 111
+    for (int i = 1; i <= columnas; i++) {
+        modelo.addColumn(meta.getColumnName(i));
+    }
+    ```
+  </Step>
+
+  <Step title="Data Rows">
+    Subsequent rows contain the actual data from the result set:
+
+    ```java
+    // Model.java - Line 115
+    while (rs.next()) {
+        Object[] fila = new Object[columnas];
+        for (int i = 0; i < columnas; i++) {
+            fila[i] = rs.getObject(i + 1);
+        }
+        modelo.addRow(fila);
+    }
+    ```
+  </Step>
+
+  <Step title="Column Sizing">
+    Columns are automatically sized to 150 pixels width:
+
+    ```java
+    // SqlEditorView.java - Line 265
+    for (int i = 0; i < tblResultados.getColumnModel().getColumnCount(); i++) {
+        tblResultados.getColumnModel().getColumn(i).setPreferredWidth(150);
+    }
+    ```
+  </Step>
+</Steps>
+
+### Example SELECT Result
+
+<Accordion title="Query: SELECT * FROM employees LIMIT 5">
+  The results table would display:
+
+  | id | name | department | salary | hire_date |
+  |----|------|------------|--------|----------|
+  | 1 | John Smith | IT | 75000.00 | 2020-01-15 |
+  | 2 | Jane Doe | HR | 65000.00 | 2019-03-22 |
+  | 3 | Bob Johnson | IT | 80000.00 | 2018-07-10 |
+  | 4 | Alice Williams | Sales | 70000.00 | 2021-05-18 |
+  | 5 | Charlie Brown | Marketing | 68000.00 | 2020-11-30 |
+
+  Each column header shows the field name, and rows contain the corresponding data values.
+</Accordion>
+
+## Data Modification Query Results
+
+For INSERT, UPDATE, DELETE, and other modification queries, the results display differs:
+
+### Affected Rows Display
+
+```java
+// Model.java - Line 124
+else {
+    int filasAfectadas = stmt.executeUpdate(query);
+    String tabla = extraerNombreTabla(trimmedQuery);
+
+    if (tabla != null && !tabla.isEmpty()) {
+        // Show updated table contents
+    } else {
+        modelo.addColumn("Mensaje del sistema");
+        modelo.addRow(new Object[] { "Filas afectadas: " + filasAfectadas });
+    }
+}
+```
+
+<CardGroup cols={2}>
+  <Card title="Table Name Identified" icon="table">
+    If the affected table can be identified, the application displays the updated table contents automatically.
+  </Card>
+  <Card title="System Message" icon="message">
+    If the table cannot be identified, a system message shows the number of affected rows.
+  </Card>
+</CardGroup>
+
+### Auto-Refresh After Modifications
+
+When a table name is successfully extracted, the results show the updated table:
+
+```java
+// Model.java - Line 128
+if (tabla != null && !tabla.isEmpty()) {
+    try (ResultSet rs = stmt.executeQuery("SELECT * FROM " + tabla)) {
+        ResultSetMetaData meta = rs.getMetaData();
+        int columnas = meta.getColumnCount();
+
+        for (int i = 1; i <= columnas; i++) {
+            modelo.addColumn(meta.getColumnName(i));
+        }
+
+        while (rs.next()) {
+            Object[] fila = new Object[columnas];
+            for (int i = 0; i < columnas; i++) {
+                fila[i] = rs.getObject(i + 1);
+            }
+            modelo.addRow(fila);
+        }
+    }
+}
+```
+
+<Note>
+  After executing an INSERT, UPDATE, or DELETE query, you'll see the updated table contents, allowing you to verify your changes immediately.
+</Note>
+
+### Example Modification Results
+
+<Accordion title="INSERT Result">
+  **Query:** `INSERT INTO employees (name, department, salary) VALUES ('New Employee', 'IT', 85000);`
+
+  **Result:** The `employees` table is displayed with the new row included, showing all current records.
+</Accordion>
+
+<Accordion title="UPDATE Result">
+  **Query:** `UPDATE employees SET salary = 90000 WHERE id = 3;`
+
+  **Result:** The `employees` table is refreshed, showing the updated salary for employee ID 3.
+</Accordion>
+
+<Accordion title="DELETE Result">
+  **Query:** `DELETE FROM employees WHERE id = 5;`
+
+  **Result:** The `employees` table is displayed without the deleted row.
+</Accordion>
+
+<Accordion title="DDL Statement Result">
+  **Query:** `TRUNCATE TABLE log_entries;`
+
+  **Result:** 
+  ```
+  Mensaje del sistema
+  Filas afectadas: 0
+  ```
+  
+  For DDL statements or operations where the table name can't be extracted, a simple message displays the affected row count.
+</Accordion>
+
+## System Messages
+
+The system message label (`lblMensajeSistema`) displays execution status:
+
+```java
+// SqlEditorView.java - Line 274
+public void setMensajeSistema(String mensaje) {
+    lblMensajeSistema.setText(mensaje);
+}
+```
+
+### Success Messages
+
+```java
+// Controller.java - Line 253
+editorView.setMensajeSistema("Consulta ejecutada correctamente");
+```
+
+<Tip>
+  Successful queries display "Consulta ejecutada correctamente" (Query executed successfully) above the results table.
+</Tip>
+
+### Error Messages
+
+```java
+// Controller.java - Line 255
+editorView.setMensajeSistema("Error: " + ex.getMessage());
+```
+
+Errors display the specific SQL error message, such as:
+- `Error: Table 'database.nonexistent' doesn't exist`
+- `Error: Duplicate entry '123' for key 'PRIMARY'`
+- `Error: Unknown column 'invalid_field' in 'field list'`
+
+## Table Browser Functionality
+
+The table browser list (`listaTablas`) on the right side provides quick access to database tables:
+
+### Table List Display
+
+```java
+// SqlEditorView.java - Line 305
+public void actualizarListaTablas(List<String> tablas) {
+    modeloListaTablas.clear();
+    if (tablas != null) {
+        for (String tabla : tablas) {
+            modeloListaTablas.addElement(tabla);
+        }
+    }
+    if (tablas == null || tablas.isEmpty()) {
+        listaTablas.setToolTipText("No se encontraron tablas");
+    } else {
+        listaTablas.setToolTipText("Doble clic para generar SELECT");
+    }
+}
+```
+
+### Double-Click Query Generation
+
+Double-clicking a table name generates an automatic SELECT query:
+
+```java
+// SqlEditorView.java - Line 146
+listaTablas.addMouseListener(new MouseAdapter() {
+    public void mouseClicked(MouseEvent evt) {
+        if (evt.getClickCount() == 2) {
+            String tablaSeleccionada = listaTablas.getSelectedValue();
+            if (tablaSeleccionada != null) {
+                String consulta = "SELECT * FROM " + tablaSeleccionada + " LIMIT 100";
+                txtConsulta.setText(consulta);
+            }
+        }
+    }
+});
+```
+
+<Warning>
+  Double-clicking a table overwrites any existing query in the editor. Make sure to save or execute your current query first.
+</Warning>
+
+## Data Type Handling
+
+The results table handles various MySQL data types:
+
+```java
+// Model.java - Line 118
+fila[i] = rs.getObject(i + 1);
+```
+
+Supported types include:
+- **Numeric:** INT, BIGINT, DECIMAL, FLOAT, DOUBLE
+- **String:** VARCHAR, CHAR, TEXT, ENUM
+- **Date/Time:** DATE, DATETIME, TIMESTAMP, TIME
+- **Binary:** BLOB, BINARY
+- **Boolean:** BOOLEAN, TINYINT(1)
+- **NULL values:** Displayed as `null`
+
+## Empty Result Sets
+
+<Accordion title="No Rows Returned">
+  When a SELECT query returns no rows:
+  - Column headers are still displayed
+  - The table area shows empty rows
+  - The system message confirms "Consulta ejecutada correctamente"
+
+  Example: `SELECT * FROM employees WHERE department = 'NonExistent'` would show column headers but no data rows.
+</Accordion>
+
+<Accordion title="Zero Rows Affected">
+  When an UPDATE or DELETE affects no rows:
+  ```
+  Mensaje del sistema
+  Filas afectadas: 0
+  ```
+
+  This indicates the query executed successfully but matched no records.
+</Accordion>
+
+## Results Table Scrolling
+
+The results table is wrapped in a scroll pane for handling large result sets:
+
+```java
+// SqlEditorView.java - Line 188
+JScrollPane scrollResultados = new JScrollPane(tblResultados);
+scrollResultados.setBorder(null);
+```
+
+<Info>
+  Large result sets can be scrolled both horizontally (for many columns) and vertically (for many rows). The table automatically adds scrollbars when needed.
+</Info>
+
+## Clearing Results
+
+The **Limpiar** (Clear) button resets the results display:
+
+```java
+// SqlEditorView.java - Line 281
+public void limpiar() {
+    txtConsulta.setText("");
+    tblResultados.setModel(new DefaultTableModel());
+    lblMensajeSistema.setText(" ");
+}
+```
+
+This removes:
+- Query text from the editor
+- All rows and columns from the results table
+- The system message
+
+## Best Practices
+
+<CardGroup cols={2}>
+  <Card title="Use LIMIT for Large Tables" icon="gauge-max">
+    Prevent overwhelming results by limiting row counts:
+    ```sql
+    SELECT * FROM large_table LIMIT 1000;
+    ```
+  </Card>
+  <Card title="Verify Modifications" icon="shield-check">
+    After INSERT/UPDATE/DELETE, review the refreshed table to confirm changes.
+  </Card>
+  <Card title="Check System Messages" icon="message-check">
+    Always read the system message to ensure queries executed as expected.
+  </Card>
+  <Card title="Use Table Browser" icon="mouse-pointer">
+    Double-click tables in the browser for quick data exploration.
+  </Card>
+</CardGroup>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Writing Queries" icon="code" href="/guide/writing-queries">
+    Learn advanced query techniques and syntax
+  </Card>
+  <Card title="Managing Connections" icon="plug-circle-check" href="/guide/managing-connections">
+    Switch databases and manage active connections
+  </Card>
+</CardGroup>

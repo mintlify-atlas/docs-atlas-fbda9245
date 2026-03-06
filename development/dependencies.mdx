@@ -1,0 +1,293 @@
+---
+title: 'Dependencies'
+description: 'External and internal dependencies used by MySQL SQL Editor'
+icon: 'puzzle-piece'
+---
+
+## Overview
+
+The MySQL SQL Editor application has minimal external dependencies, relying primarily on the Java standard library and a single third-party JDBC driver for MySQL connectivity.
+
+## External Dependencies
+
+### MySQL Connector/J 9.2.0
+
+<Info>
+  **Location:** `lib/mysql-connector-j-9.2.0.jar`  
+  **Size:** ~2.6 MB  
+  **License:** GPL v2 with Universal FOSS Exception
+</Info>
+
+**What it is:**
+
+MySQL Connector/J is the official JDBC (Java Database Connectivity) driver for MySQL. It enables Java applications to connect to MySQL databases and execute SQL statements.
+
+**Why it's needed:**
+
+The application uses JDBC to:
+- Establish connections to MySQL servers (see `Model.java:53`)
+- Execute SQL queries and updates (see `Model.java:101`)
+- Retrieve database metadata (table lists, column information)
+- Handle result sets and prepared statements
+
+**Key features used:**
+
+- **Connection Management:** `DriverManager.getConnection()` creates database connections
+- **Statement Execution:** Executes both SELECT queries and DML statements (INSERT, UPDATE, DELETE)
+- **ResultSet Processing:** Retrieves and processes query results
+- **Metadata Access:** Uses `DatabaseMetaData` to list databases and tables
+
+**Code example from the project:**
+
+```java
+// From Model.java:53-58
+public void conectar(String host, String database, String usuario, String password) throws SQLException {
+    conexion = DriverManager.getConnection(
+        "jdbc:mysql://" + host + ":3306/" + database + "?useSSL=false",
+        usuario,
+        password
+    );
+}
+```
+
+### Updating MySQL Connector/J
+
+To update to a newer version:
+
+<Steps>
+  <Step title="Download New Version">
+    1. Visit the [MySQL Connector/J download page](https://dev.mysql.com/downloads/connector/j/)
+    2. Download the platform-independent ZIP archive
+    3. Extract the JAR file (e.g., `mysql-connector-j-9.3.0.jar`)
+  </Step>
+
+  <Step title="Replace JAR File">
+    Replace the existing JAR in the `lib/` directory:
+    ```bash
+    # Backup the old version
+    mv lib/mysql-connector-j-9.2.0.jar lib/mysql-connector-j-9.2.0.jar.bak
+    
+    # Copy the new version
+    cp /path/to/mysql-connector-j-9.3.0.jar lib/
+    ```
+  </Step>
+
+  <Step title="Update Build Configuration">
+    Update any build scripts or IDE configurations that reference the JAR name:
+    
+    - **Command-line compilation:** Update the `-cp` flag
+      ```bash
+      javac -cp "lib/mysql-connector-j-9.3.0.jar" -d bin ...
+      ```
+    
+    - **IDE:** Remove the old JAR from project libraries and add the new one
+    
+    - **Build scripts:** Update `build.sh` or `build.bat` to reference the new JAR
+  </Step>
+
+  <Step title="Test Compatibility">
+    Test the application thoroughly:
+    1. Compile the project: `./build.sh` or `build.bat`
+    2. Run the application and test database connectivity
+    3. Verify all SQL operations work correctly
+
+    <Note>
+      MySQL Connector/J maintains backward compatibility within major versions. Updating from 9.2.0 to 9.3.0 should be seamless.
+    </Note>
+  </Step>
+</Steps>
+
+<Warning>
+  **Breaking changes** may occur between major versions (e.g., 8.x to 9.x). Always review the [release notes](https://dev.mysql.com/doc/relnotes/connector-j/9.2/en/) before upgrading.
+</Warning>
+
+## Java Standard Library
+
+The application uses several packages from the Java Standard Library (included with JDK):
+
+### java.sql (JDBC API)
+
+**Purpose:** Database connectivity and SQL execution
+
+**Key classes used:**
+- `Connection` - Represents a database connection
+- `Statement` - Executes SQL statements
+- `ResultSet` - Represents query results
+- `SQLException` - Exception handling for database operations
+- `DriverManager` - Manages JDBC drivers
+- `DatabaseMetaData` - Database metadata information
+- `ResultSetMetaData` - Result set structure information
+
+**Usage locations:**
+- `Model.java` - All database operations (lines 1-193)
+
+### javax.swing (GUI Framework)
+
+**Purpose:** Building the graphical user interface
+
+**Key classes used:**
+- `JFrame` - Main application windows
+- `JPanel` - Container for UI components
+- `JButton` - Clickable buttons
+- `JTextField` - Text input fields
+- `JPasswordField` - Password input with masking
+- `JComboBox` - Dropdown selection lists
+- `JTable` - Tabular data display
+- `JTextArea` - Multi-line text input/display
+- `JLabel` - Text labels
+- `JScrollPane` - Scrollable content containers
+- `DefaultTableModel` - Table data model
+
+**Usage locations:**
+- `View.java` - Login window UI (lines 1-254)
+- `SqlEditorView.java` - SQL editor and results display
+
+### java.awt (Abstract Window Toolkit)
+
+**Purpose:** Core GUI components and layout management
+
+**Key classes used:**
+- `Color` - Color definitions (brand color: #0078D7 used in `View.java:26`)
+- `Font` - Typography configuration
+- `GridBagLayout` / `GridBagConstraints` - Flexible layout manager
+- `BorderLayout` - Border-based layout
+- `FlowLayout` - Flow-based layout
+- `Dimension` - Component sizing
+- `Insets` - Spacing and padding
+
+**Usage locations:**
+- `View.java` - Login UI layout and styling (lines 3, 24-29)
+- `SqlEditorView.java` - Editor UI layout
+
+### java.util
+
+**Purpose:** Utility classes and collections
+
+**Key classes used:**
+- `List` - Interface for ordered collections
+- `ArrayList` - Dynamic array implementation
+
+**Usage locations:**
+- `Model.java` - Storing database and table lists (lines 4, 27, 79)
+
+### java.awt.event
+
+**Purpose:** Event handling for user interactions
+
+**Key classes used:**
+- `MouseAdapter` - Mouse event handling (hover effects in `View.java:174`)
+- `ActionListener` - Button click handling (in `Controller.java`)
+
+## Dependency Graph
+
+```
+MySQL SQL Editor Application
+├── MySQL Connector/J 9.2.0 (external)
+│   └── Provides: JDBC driver implementation
+└── Java Standard Library (built-in)
+    ├── java.sql
+    │   └── JDBC API interfaces
+    ├── javax.swing
+    │   └── GUI components
+    ├── java.awt
+    │   └── Graphics and layout
+    └── java.util
+        └── Collections framework
+```
+
+## Why Minimal Dependencies?
+
+The application intentionally uses minimal external dependencies for several reasons:
+
+1. **Simplicity** - Easier to build, deploy, and maintain
+2. **Security** - Fewer third-party libraries reduce attack surface
+3. **Portability** - Works on any platform with a JDK
+4. **Performance** - No overhead from heavy frameworks
+5. **Learning** - Clear understanding of how everything works
+
+<Note>
+  Java Swing, while part of the standard library, provides a fully-featured GUI toolkit. For this SQL editor application, it offers everything needed without requiring additional UI frameworks.
+</Note>
+
+## Dependency Security
+
+### Keeping Dependencies Updated
+
+Regularly check for security updates:
+
+1. **MySQL Connector/J:** Monitor [MySQL security advisories](https://www.mysql.com/support/security/)
+2. **Java JDK:** Keep your JDK updated with security patches
+
+### Verifying JAR Integrity
+
+Verify downloaded JARs using checksums:
+
+```bash
+# Calculate SHA-256 checksum
+shasum -a 256 lib/mysql-connector-j-9.2.0.jar
+
+# Compare with the official checksum from MySQL downloads page
+```
+
+<Warning>
+  Only download MySQL Connector/J from official sources (mysql.com or Maven Central). Avoid unofficial mirrors to prevent malicious JAR files.
+</Warning>
+
+## Optional: Using Build Tools
+
+While this project uses manual dependency management, you can optionally migrate to build tools:
+
+### Maven
+
+Create a `pom.xml`:
+
+```xml
+<project>
+  <modelVersion>4.0.0</modelVersion>
+  <groupId>com.app</groupId>
+  <artifactId>mysql-sql-editor</artifactId>
+  <version>1.0</version>
+  
+  <dependencies>
+    <dependency>
+      <groupId>com.mysql</groupId>
+      <artifactId>mysql-connector-j</artifactId>
+      <version>9.2.0</version>
+    </dependency>
+  </dependencies>
+</project>
+```
+
+### Gradle
+
+Create a `build.gradle`:
+
+```groovy
+plugins {
+    id 'java'
+    id 'application'
+}
+
+application {
+    mainClass = 'com.app.Main'
+}
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    implementation 'com.mysql:mysql-connector-j:9.2.0'
+}
+```
+
+<Info>
+  Build tools automate dependency management, downloading and caching dependencies automatically. However, they add complexity to the project structure.
+</Info>
+
+## Related Documentation
+
+- [Development Setup](/development/setup) - Configure your development environment
+- [Building and Running](/development/building) - Compile and execute the application
+- [Architecture Components](/architecture/components) - Detailed class and method documentation
+- [MVC Pattern](/architecture/mvc-pattern) - How Model, View, and Controller work together

@@ -1,0 +1,996 @@
+---
+title: Troubleshooting
+description: Common issues and solutions for the MySQL SQL Editor
+---
+
+## Overview
+
+This guide covers common issues you may encounter while using the MySQL SQL Editor, along with their solutions based on the application's error handling logic.
+
+---
+
+## Connection Issues
+
+<AccordionGroup>
+  <Accordion title="Connection Refused Error" icon="ban">
+    ### Symptoms
+    
+    Error message in login view:
+    ```
+    Error de conexión: Connection refused
+    ```
+    
+    or
+    
+    ```
+    Error: Communications link failure
+    ```
+    
+    ### Root Causes
+    
+    **Source:** `Model.java:54-58` - `DriverManager.getConnection()` fails
+    
+    1. **MySQL Server Not Running**
+       - The MySQL service is stopped
+       - The server crashed or failed to start
+    
+    2. **Wrong Server Address**
+       - Selected server is not running MySQL
+       - Firewall blocking port 3306
+    
+    3. **Port Already in Use**
+       - Another service is using port 3306
+       - MySQL is running on a different port
+    
+    ### Solutions
+    
+    <Steps>
+      <Step title="Verify MySQL is Running">
+        **Linux/macOS:**
+        ```bash
+        sudo systemctl status mysql
+        # or
+        sudo service mysql status
+        ```
+        
+        **Windows:**
+        ```bash
+        net start | find "MySQL"
+        ```
+        
+        Start MySQL if needed:
+        ```bash
+        sudo systemctl start mysql  # Linux
+        net start MySQL80           # Windows
+        ```
+      </Step>
+      
+      <Step title="Check MySQL Port">
+        Verify MySQL is listening on port 3306:
+        ```bash
+        netstat -an | grep 3306
+        # or
+        lsof -i :3306
+        ```
+        
+        <Note>
+          The application only supports port 3306. If your MySQL server uses a different port, you'll need to modify the connection string in `Model.java:28` and `Model.java:54-55`.
+        </Note>
+      </Step>
+      
+      <Step title="Test Connection Manually">
+        Use the MySQL command-line client:
+        ```bash
+        mysql -h localhost -u root -p
+        ```
+        
+        If this fails, the issue is with MySQL configuration, not the application.
+      </Step>
+    </Steps>
+  </Accordion>
+  
+  <Accordion title="Authentication Failed Error" icon="lock">
+    ### Symptoms
+    
+    Error message in login view:
+    ```
+    Error: Access denied for user 'username'@'localhost' (using password: YES)
+    ```
+    
+    ### Root Causes
+    
+    **Source:** `Model.java:26-42` (database discovery), `Model.java:53-59` (connection)
+    
+    1. **Invalid Username**
+       - Username does not exist in MySQL
+       - Typo in username field
+    
+    2. **Incorrect Password**
+       - Wrong password entered
+       - Password contains special characters not properly entered
+    
+    3. **User Permissions**
+       - User exists but doesn't have required privileges
+       - User is restricted to specific hosts
+    
+    ### Solutions
+    
+    <Steps>
+      <Step title="Verify Credentials">
+        Test credentials with MySQL CLI:
+        ```bash
+        mysql -h localhost -u [username] -p
+        # Enter password when prompted
+        ```
+      </Step>
+      
+      <Step title="Check User Privileges">
+        If login works via CLI, check user permissions:
+        ```sql
+        SHOW GRANTS FOR 'username'@'localhost';
+        ```
+        
+        Required privileges:
+        - `SELECT` - For query execution
+        - `INSERT`, `UPDATE`, `DELETE` - For data modification
+        - `CREATE`, `DROP`, `ALTER` - For schema changes
+        - `SHOW DATABASES` - For database discovery (required)
+      </Step>
+      
+      <Step title="Reset Password (if needed)">
+        ```sql
+        ALTER USER 'username'@'localhost' IDENTIFIED BY 'new_password';
+        FLUSH PRIVILEGES;
+        ```
+      </Step>
+    </Steps>
+    
+    <Warning>
+      The application trims whitespace from username and password (`View.java:188`, `View.java:191`). Leading/trailing spaces will be removed automatically.
+    </Warning>
+  </Accordion>
+  
+  <Accordion title="Empty Database List" icon="database">
+    ### Symptoms
+    
+    After clicking "Actualizar", the database combo box remains empty with error:
+    ```
+    No se encontraron bases de datos
+    ```
+    
+    ### Root Causes
+    
+    **Source:** `Model.java:36-38` - System databases are filtered out
+    
+    1. **No User Databases**
+       - Only system databases exist (information_schema, mysql, performance_schema, sys)
+       - All user databases were dropped
+    
+    2. **Insufficient Privileges**
+       - User cannot execute `SHOW DATABASES`
+       - User has access but grants are not visible
+    
+    ### Solutions
+    
+    <Steps>
+      <Step title="Check Existing Databases">
+        Connect via MySQL CLI and run:
+        ```sql
+        SHOW DATABASES;
+        ```
+        
+        Verify that databases other than system databases exist.
+      </Step>
+      
+      <Step title="Create a Test Database">
+        ```sql
+        CREATE DATABASE test_db;
+        ```
+        
+        Then click "Actualizar" in the application.
+      </Step>
+      
+      <Step title="Verify SHOW DATABASES Privilege">
+        ```sql
+        SHOW GRANTS FOR CURRENT_USER();
+        ```
+        
+        Grant if needed:
+        ```sql
+        GRANT SHOW DATABASES ON *.* TO 'username'@'localhost';
+        FLUSH PRIVILEGES;
+        ```
+      </Step>
+    </Steps>
+    
+    <Note>
+      The filter regex is: `information_schema|mysql|performance_schema|sys` (`Model.java:36`). Databases matching these patterns are never shown.
+    </Note>
+  </Accordion>
+  
+  <Accordion title="Connection Timeout" icon="clock">
+    ### Symptoms
+    
+    Application freezes or shows error after long wait:
+    ```
+    Error: Connection timed out
+    ```
+    
+    ### Root Causes
+    
+    **Source:** Async operations in `Controller.java`
+    
+    1. **Network Issues**
+       - Slow or unreliable network connection
+       - Remote server not responding
+    
+    2. **Server Overload**
+       - MySQL server is under heavy load
+       - Too many concurrent connections
+    
+    3. **Firewall/Proxy**
+       - Firewall dropping packets
+       - Proxy interfering with connection
+    
+    ### Solutions
+    
+    <Steps>
+      <Step title="Test Network Connectivity">
+        ```bash
+        ping [server_address]
+        telnet [server_address] 3306
+        ```
+      </Step>
+      
+      <Step title="Check MySQL Connection Limit">
+        ```sql
+        SHOW VARIABLES LIKE 'max_connections';
+        SHOW STATUS LIKE 'Threads_connected';
+        ```
+        
+        Increase if needed:
+        ```sql
+        SET GLOBAL max_connections = 200;
+        ```
+      </Step>
+      
+      <Step title="Increase Timeout (requires code change)">
+        Modify connection URL in `Model.java:28` or `Model.java:54-55`:
+        ```java
+        String url = "jdbc:mysql://" + host + ":3306/" + database 
+                   + "?useSSL=false&connectTimeout=10000";
+        ```
+      </Step>
+    </Steps>
+  </Accordion>
+  
+  <Accordion title="SSL Connection Error" icon="shield">
+    ### Symptoms
+    
+    Warning or error about SSL certificate:
+    ```
+    Error: SSL connection error
+    ```
+    
+    ### Root Cause
+    
+    **Source:** `Model.java:28`, `Model.java:54-55` - `useSSL=false` parameter
+    
+    MySQL server requires SSL but application disables it.
+    
+    ### Solution
+    
+    <Steps>
+      <Step title="Check MySQL SSL Requirement">
+        ```sql
+        SHOW VARIABLES LIKE 'require_secure_transport';
+        ```
+        
+        If `ON`, SSL is required.
+      </Step>
+      
+      <Step title="Enable SSL in Application (requires code change)">
+        Modify `Model.java`:
+        
+        **Change:**
+        ```java
+        String url = "jdbc:mysql://" + host + ":3306/" + database + "?useSSL=false";
+        ```
+        
+        **To:**
+        ```java
+        String url = "jdbc:mysql://" + host + ":3306/" + database 
+                   + "?useSSL=true&requireSSL=true";
+        ```
+      </Step>
+      
+      <Step title="Disable SSL on MySQL Server (not recommended for production)">
+        ```sql
+        SET GLOBAL require_secure_transport = OFF;
+        ```
+      </Step>
+    </Steps>
+    
+    <Warning>
+      Disabling SSL in production environments is a security risk. Only use `useSSL=false` for local development.
+    </Warning>
+  </Accordion>
+</AccordionGroup>
+
+---
+
+## Query Execution Issues
+
+<AccordionGroup>
+  <Accordion title="Empty Query Warning" icon="exclamation">
+    ### Symptoms
+    
+    Warning dialog appears:
+    ```
+    Ingrese una consulta SQL
+    ```
+    
+    ### Root Cause
+    
+    **Source:** `Controller.java:235-239`
+    
+    The query text area (`txtConsulta`) is empty or contains only whitespace.
+    
+    ### Solution
+    
+    Enter a SQL query before clicking "Ejecutar".
+    
+    <Tip>
+      Double-click a table name in the "Tablas disponibles" list to auto-generate a SELECT query (`SqlEditorView.java:146-156`):
+      ```sql
+      SELECT * FROM [table_name] LIMIT 100
+      ```
+    </Tip>
+  </Accordion>
+  
+  <Accordion title="SQL Syntax Error" icon="code">
+    ### Symptoms
+    
+    Error dialog and system message:
+    ```
+    Error en la consulta: You have an error in your SQL syntax...
+    ```
+    
+    ### Root Causes
+    
+    **Source:** `Model.java:101-154` - SQLException from `Statement.executeQuery()` or `executeUpdate()`
+    
+    1. **Invalid SQL Syntax**
+       - Missing keywords (SELECT, FROM, WHERE, etc.)
+       - Incorrect column/table names
+       - Unmatched quotes or parentheses
+    
+    2. **Reserved Keyword Usage**
+       - Using reserved words without backticks
+       - Example: `SELECT order FROM orders` (should be `` `order` ``)
+    
+    3. **Missing Semicolon (rare)**
+       - Some queries require explicit termination
+    
+    ### Solutions
+    
+    <Steps>
+      <Step title="Verify Query Syntax">
+        Check for common errors:
+        - Missing `FROM` clause in SELECT
+        - Missing `WHERE` column name
+        - Unmatched quotes: `'value` instead of `'value'`
+      </Step>
+      
+      <Step title="Test Query in MySQL CLI">
+        ```bash
+        mysql -h localhost -u [username] -p [database] -e "[your_query]"
+        ```
+      </Step>
+      
+      <Step title="Escape Reserved Keywords">
+        Use backticks around reserved words:
+        ```sql
+        SELECT `order`, `date`, `table` FROM `orders`;
+        ```
+      </Step>
+    </Steps>
+    
+    <Note>
+      The application does not perform client-side SQL validation. All syntax errors are caught when MySQL processes the query.
+    </Note>
+  </Accordion>
+  
+  <Accordion title="Table or Column Not Found" icon="magnifying-glass">
+    ### Symptoms
+    
+    Error dialog:
+    ```
+    Error en la consulta: Table 'database.tablename' doesn't exist
+    ```
+    
+    or
+    
+    ```
+    Error en la consulta: Unknown column 'column_name' in 'field list'
+    ```
+    
+    ### Root Causes
+    
+    **Source:** SQLException from `Statement.executeQuery()` or `executeUpdate()`
+    
+    1. **Typo in Name**
+       - Incorrect spelling of table or column
+       - Wrong case (if database is case-sensitive)
+    
+    2. **Wrong Database**
+       - Connected to different database than intended
+       - Table exists but in another schema
+    
+    3. **Table Dropped**
+       - Table was deleted after table list was populated
+       - Table list needs refreshing
+    
+    ### Solutions
+    
+    <Steps>
+      <Step title="Verify Database Connection">
+        Check the connection status field at top right:
+        ```
+        Conectado a: [database_name]
+        ```
+        
+        Ensure you're connected to the correct database.
+      </Step>
+      
+      <Step title="Refresh Table List">
+        Click "Refrescar tablas" to update the table list (`Controller.java:192-212`).
+      </Step>
+      
+      <Step title="Check Table Schema">
+        Use DESCRIBE to verify table structure:
+        ```sql
+        DESCRIBE table_name;
+        ```
+        
+        or
+        
+        ```sql
+        SHOW COLUMNS FROM table_name;
+        ```
+      </Step>
+    </Steps>
+  </Accordion>
+  
+  <Accordion title="Query Returns No Results" icon="table">
+    ### Symptoms
+    
+    Query executes successfully but result table is empty.
+    
+    System message shows:
+    ```
+    Consulta ejecutada correctamente
+    ```
+    
+    ### Root Causes
+    
+    **Not an error** - This is normal behavior for:
+    
+    1. **No Matching Rows**
+       - WHERE clause filters out all rows
+       - Table is empty
+    
+    2. **Successful Modification**
+       - INSERT/UPDATE/DELETE executed on empty table
+       - Query affected 0 rows
+    
+    ### Verification
+    
+    <Steps>
+      <Step title="Check Row Count">
+        For modifications, the system message or result table will show:
+        ```
+        Filas afectadas: 0
+        ```
+      </Step>
+      
+      <Step title="Verify Table Contents">
+        Double-click the table in the "Tablas disponibles" list to generate:
+        ```sql
+        SELECT * FROM [table] LIMIT 100
+        ```
+        
+        Then click "Ejecutar".
+      </Step>
+      
+      <Step title="Check WHERE Conditions">
+        Remove or modify WHERE clause to see if rows exist:
+        ```sql
+        SELECT * FROM users WHERE id = 999;  -- May return nothing
+        SELECT * FROM users;                 -- Returns all rows
+        ```
+      </Step>
+    </Steps>
+  </Accordion>
+  
+  <Accordion title="Constraint Violation Error" icon="link-slash">
+    ### Symptoms
+    
+    Error dialog:
+    ```
+    Error en la consulta: Duplicate entry '...' for key 'PRIMARY'
+    ```
+    
+    or
+    
+    ```
+    Error en la consulta: Cannot add or update a child row: a foreign key constraint fails
+    ```
+    
+    ### Root Causes
+    
+    **Source:** SQLException from `Statement.executeUpdate()`
+    
+    1. **Primary Key Violation**
+       - Attempting to insert duplicate primary key
+       - Unique constraint violation
+    
+    2. **Foreign Key Violation**
+       - Referencing non-existent parent row
+       - Attempting to delete parent row with children
+    
+    3. **NOT NULL Violation**
+       - Inserting NULL into NOT NULL column
+       - Missing required columns in INSERT
+    
+    ### Solutions
+    
+    <Steps>
+      <Step title="Check Existing Data">
+        Before INSERT:
+        ```sql
+        SELECT * FROM table WHERE id = [your_id];
+        ```
+      </Step>
+      
+      <Step title="Use INSERT IGNORE or REPLACE">
+        **Skip duplicates:**
+        ```sql
+        INSERT IGNORE INTO users (id, name) VALUES (1, 'John');
+        ```
+        
+        **Replace existing:**
+        ```sql
+        REPLACE INTO users (id, name) VALUES (1, 'John');
+        ```
+      </Step>
+      
+      <Step title="Verify Foreign Key References">
+        Check parent table exists:
+        ```sql
+        SELECT * FROM parent_table WHERE id = [foreign_key_value];
+        ```
+      </Step>
+    </Steps>
+  </Accordion>
+  
+  <Accordion title="Query Timeout or Long Execution" icon="hourglass">
+    ### Symptoms
+    
+    Application appears frozen during query execution.
+    
+    UI is responsive but no results appear for a long time.
+    
+    ### Root Causes
+    
+    **Source:** `Controller.java:242-264` - SwingWorker execution
+    
+    1. **Large Result Set**
+       - SELECT without LIMIT on huge table
+       - Returning millions of rows
+    
+    2. **Missing Index**
+       - Query scans entire table without index
+       - JOIN without proper indexing
+    
+    3. **Expensive Operations**
+       - Complex calculations or aggregations
+       - Large GROUP BY or ORDER BY operations
+    
+    ### Solutions
+    
+    <Steps>
+      <Step title="Add LIMIT Clause">
+        Restrict result size:
+        ```sql
+        SELECT * FROM large_table LIMIT 1000;
+        ```
+        
+        <Tip>
+          The auto-generated query from double-clicking a table already includes `LIMIT 100` (`SqlEditorView.java:151`).
+        </Tip>
+      </Step>
+      
+      <Step title="Check Query Performance">
+        Use EXPLAIN to analyze query:
+        ```sql
+        EXPLAIN SELECT * FROM users WHERE email = 'test@example.com';
+        ```
+        
+        Look for "type: ALL" which indicates full table scan.
+      </Step>
+      
+      <Step title="Add Indexes">
+        Create indexes on frequently queried columns:
+        ```sql
+        CREATE INDEX idx_email ON users(email);
+        ```
+      </Step>
+    </Steps>
+    
+    <Note>
+      All queries execute asynchronously using SwingWorker (`Controller.java:242-264`). The UI remains responsive even during long queries, but results won't appear until execution completes.
+    </Note>
+  </Accordion>
+</AccordionGroup>
+
+---
+
+## UI Responsiveness Issues
+
+<AccordionGroup>
+  <Accordion title="Application Freezes During Operation" icon="spinner">
+    ### Symptoms
+    
+    UI becomes unresponsive and cannot be interacted with.
+    
+    Buttons and text fields are grayed out.
+    
+    ### Root Cause
+    
+    **Expected Behavior** - `View.bloquearInterfaz(true)` is active
+    
+    **Source:** `View.java:239-252`, `Controller.java:110`, `Controller.java:150`
+    
+    The interface is intentionally locked during async operations:
+    - Database list loading
+    - Database connection
+    - Query execution
+    - Table refresh
+    
+    ### Normal vs. Problem
+    
+    **Normal:**
+    - Controls are grayed out
+    - Operation completes within seconds
+    - Interface unlocks automatically
+    
+    **Problem:**
+    - Operation takes very long time
+    - Interface never unlocks
+    - Application must be force-closed
+    
+    ### Solutions
+    
+    <Steps>
+      <Step title="Wait for Operation to Complete">
+        Check if this is a long-running query or slow network.
+        
+        The application will unlock automatically when the operation finishes.
+      </Step>
+      
+      <Step title="Restart Application">
+        If truly frozen:
+        1. Force quit the application
+        2. Check MySQL server status
+        3. Verify network connectivity
+        4. Restart the application
+      </Step>
+      
+      <Step title="Check for Thread Deadlock">
+        If issue persists, there may be a SwingWorker deadlock:
+        - Check application logs
+        - Verify no exceptions were swallowed
+        - Ensure `done()` method is always called
+      </Step>
+    </Steps>
+  </Accordion>
+  
+  <Accordion title="Table List Not Updating" icon="list">
+    ### Symptoms
+    
+    After creating or dropping tables, the "Tablas disponibles" list doesn't reflect changes.
+    
+    ### Root Cause
+    
+    **Source:** `SqlEditorView.java:305-317` - List is not auto-refreshed
+    
+    The table list is only updated:
+    1. After initial connection (`Controller.java:172-173`)
+    2. When "Refrescar tablas" is clicked (`Controller.java:64`)
+    
+    ### Solution
+    
+    Click the "Refrescar tablas" button to reload the table list (`Controller.java:192-212`).
+    
+    <Tip>
+      Always refresh the table list after executing DDL statements (CREATE TABLE, DROP TABLE, ALTER TABLE).
+    </Tip>
+  </Accordion>
+  
+  <Accordion title="Results Not Displayed" icon="eye-slash">
+    ### Symptoms
+    
+    Query executes successfully (system message shows success) but no results appear in table.
+    
+    ### Root Causes
+    
+    1. **Empty Result Set**
+       - Query returned 0 rows (see "Query Returns No Results" above)
+    
+    2. **Modification Query**
+       - INSERT/UPDATE/DELETE shows affected row count instead of results
+       - Source: `Model.java:124`, `Model.java:147-148`
+    
+    3. **Previous Results Not Cleared**
+       - Old results still displayed from previous query
+    
+    ### Solutions
+    
+    <Steps>
+      <Step title="Check System Message">
+        Read the message above the results table:
+        - "Consulta ejecutada correctamente" = Success
+        - "Filas afectadas: N" = Modification query
+        - "Error: ..." = Query failed
+      </Step>
+      
+      <Step title="Clear Previous Results">
+        Click "Limpiar" to clear old results before executing new query (`SqlEditorView.java:281-285`).
+      </Step>
+      
+      <Step title="Verify Query Type">
+        For modification queries, the application attempts to display the affected table:
+        
+        **Supported:** `Model.java:163-191`
+        - `CREATE TABLE`, `INSERT INTO`, `UPDATE`, `DELETE FROM`, `TRUNCATE TABLE`
+        
+        **Unsupported:**
+        - `ALTER TABLE`, `DROP TABLE`, `CREATE INDEX`, etc.
+        
+        These show "Filas afectadas: N" instead.
+      </Step>
+    </Steps>
+  </Accordion>
+  
+  <Accordion title="Cannot Change Database" icon="database">
+    ### Symptoms
+    
+    Clicking "Cambiar BD" does nothing or shows error:
+    ```
+    Error al desconectar: ...
+    ```
+    
+    ### Root Causes
+    
+    **Source:** `Controller.java:66-76`, `Controller.java:217-228`
+    
+    1. **Confirmation Cancelled**
+       - User clicked "No" on confirmation dialog
+       - Expected behavior, not an error
+    
+    2. **Connection Already Closed**
+       - Connection was terminated externally
+       - SQLException during disconnect
+    
+    ### Solutions
+    
+    <Steps>
+      <Step title="Confirm Disconnection">
+        When prompted:
+        ```
+        ¿Desea desconectarse y cambiar de base de datos?
+        ```
+        
+        Click "Yes" to proceed.
+      </Step>
+      
+      <Step title="Force Reconnect">
+        If disconnect fails:
+        1. Close the application
+        2. Restart
+        3. Login with new credentials/database
+      </Step>
+    </Steps>
+  </Accordion>
+</AccordionGroup>
+
+---
+
+## JDBC Driver Issues
+
+<AccordionGroup>
+  <Accordion title="ClassNotFoundException: com.mysql.jdbc.Driver" icon="puzzle-piece">
+    ### Symptoms
+    
+    Application fails to start or shows error:
+    ```
+    ClassNotFoundException: com.mysql.jdbc.Driver
+    ```
+    
+    or
+    
+    ```
+    No suitable driver found for jdbc:mysql://...
+    ```
+    
+    ### Root Cause
+    
+    **Source:** JDBC connection attempts in `Model.java:30`, `Model.java:54-58`
+    
+    MySQL Connector/J JAR is missing from classpath.
+    
+    ### Solutions
+    
+    <Steps>
+      <Step title="Download MySQL Connector/J">
+        Get the latest JDBC driver from:
+        ```
+        https://dev.mysql.com/downloads/connector/j/
+        ```
+        
+        Download the Platform Independent ZIP.
+      </Step>
+      
+      <Step title="Add to Classpath">
+        **Command Line:**
+        ```bash
+        java -cp ".:mysql-connector-j-8.0.33.jar" -jar mysql-editor.jar
+        ```
+        
+        **IDE (Eclipse/IntelliJ):**
+        1. Right-click project → Properties/Settings
+        2. Add External JARs
+        3. Select `mysql-connector-j-x.x.x.jar`
+        4. Rebuild project
+      </Step>
+      
+      <Step title="Verify Driver Loading">
+        Test with minimal code:
+        ```java
+        try {
+            Class.forName("com.mysql.cj.jdbc.Driver");
+            System.out.println("Driver loaded successfully");
+        } catch (ClassNotFoundException e) {
+            System.err.println("Driver not found: " + e.getMessage());
+        }
+        ```
+      </Step>
+    </Steps>
+    
+    <Warning>
+      Modern MySQL Connector/J (8.0+) uses `com.mysql.cj.jdbc.Driver` instead of `com.mysql.jdbc.Driver`. The application relies on automatic driver loading via JDBC 4.0, so no explicit `Class.forName()` is needed.
+    </Warning>
+  </Accordion>
+  
+  <Accordion title="Driver Version Mismatch" icon="code-branch">
+    ### Symptoms
+    
+    Warnings in console:
+    ```
+    Loading class 'com.mysql.jdbc.Driver'. This is deprecated.
+    ```
+    
+    or
+    
+    ```
+    Public Key Retrieval is not allowed
+    ```
+    
+    ### Root Causes
+    
+    1. **Old Driver with New MySQL**
+       - MySQL Connector/J 5.x with MySQL 8.0
+       - Deprecated driver class
+    
+    2. **Authentication Plugin Mismatch**
+       - MySQL 8.0 uses `caching_sha2_password`
+       - Old drivers don't support this
+    
+    ### Solutions
+    
+    <Steps>
+      <Step title="Update MySQL Connector/J">
+        Use MySQL Connector/J 8.0.33 or later:
+        ```
+        https://dev.mysql.com/downloads/connector/j/8.0.html
+        ```
+      </Step>
+      
+      <Step title="Update Connection String (if needed)">
+        Add authentication parameters to `Model.java`:
+        ```java
+        String url = "jdbc:mysql://" + host + ":3306/" + database 
+                   + "?useSSL=false&allowPublicKeyRetrieval=true";
+        ```
+      </Step>
+      
+      <Step title="Change MySQL Authentication Plugin">
+        If updating driver is not possible:
+        ```sql
+        ALTER USER 'username'@'localhost' 
+        IDENTIFIED WITH mysql_native_password BY 'password';
+        FLUSH PRIVILEGES;
+        ```
+      </Step>
+    </Steps>
+  </Accordion>
+</AccordionGroup>
+
+---
+
+## Error Message Reference
+
+### Login View Errors
+
+| Error Message | Source | Cause | Solution |
+|---------------|--------|-------|----------|
+| "El usuario es requerido" | `Controller.java:86` | Empty username field | Enter username |
+| "La contraseña es requerida" | `Controller.java:91` | Empty password field | Enter password |
+| "Debe seleccionar una base de datos" | `Controller.java:96` | No database selected | Select from dropdown or click Actualizar |
+| "No se encontraron bases de datos" | `Controller.java:129` | No user databases exist | Create a database in MySQL |
+| "Error: {SQLException}" | `Controller.java:137`, `Controller.java:180` | Connection/query failed | Check MySQL server, credentials, network |
+| "Error de conexión: {message}" | `Controller.java:180` | Connection failed | Verify server is running, credentials are correct |
+
+### Editor View Errors
+
+| Error Message | Source | Cause | Solution |
+|---------------|--------|-------|----------|
+| "Ingrese una consulta SQL" | `Controller.java:236-238` | Empty query | Enter SQL query |
+| "Error en la consulta: {SQLException}" | `Controller.java:257-258` | SQL error | Check syntax, table names, permissions |
+| "Error al obtener tablas: {message}" | `Controller.java:205-207` | Table list refresh failed | Check connection, database still exists |
+| "Error al desconectar: {message}" | `Controller.java:224-226` | Disconnect failed | Force quit and restart |
+| "Consulta ejecutada correctamente" | `Controller.java:253` | Query succeeded | Normal success message |
+| "Filas afectadas: {count}" | `Model.java:148` | Modification query | Shows number of affected rows |
+
+---
+
+## Getting Additional Help
+
+<Card title="Check MySQL Logs" icon="file-lines">
+  MySQL error logs contain detailed information about connection issues and query errors.
+  
+  **Log Locations:**
+  - Linux: `/var/log/mysql/error.log`
+  - Windows: `C:\ProgramData\MySQL\MySQL Server 8.0\Data\*.err`
+  - macOS: `/usr/local/mysql/data/*.err`
+  
+  **View Recent Errors:**
+  ```bash
+  sudo tail -f /var/log/mysql/error.log
+  ```
+</Card>
+
+<Card title="Enable JDBC Logging" icon="terminal">
+  Add logging to connection URLs in `Model.java` for debugging:
+  
+  ```java
+  String url = "jdbc:mysql://" + host + ":3306/" + database 
+             + "?useSSL=false&logger=com.mysql.cj.log.StandardLogger"
+             + "&profileSQL=true";
+  ```
+</Card>
+
+<Card title="Test with MySQL CLI" icon="code">
+  Always test problematic queries in the MySQL command-line client first:
+  
+  ```bash
+  mysql -h localhost -u username -p database_name
+  ```
+  
+  If the query fails in CLI, it's a MySQL issue, not an application issue.
+</Card>
+
+<Note>
+  Most issues stem from MySQL configuration, credentials, or network connectivity rather than the application itself. Always verify external dependencies first.
+</Note>

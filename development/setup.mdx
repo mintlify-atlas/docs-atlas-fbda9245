@@ -1,0 +1,216 @@
+---
+title: 'Development Environment Setup'
+description: 'Set up your development environment for MySQL SQL Editor'
+icon: 'laptop-code'
+---
+
+<Steps>
+  <Step title="Prerequisites">
+    Before you begin, ensure you have the following installed:
+
+    **Java Development Kit (JDK) 8 or later**
+    
+    Verify your Java installation:
+    ```bash
+    java -version
+    javac -version
+    ```
+
+    You should see output indicating JDK version 8 or higher.
+
+    <Note>
+      This project uses Java Swing for the GUI and JDBC for database connectivity, both of which are included in the standard JDK.
+    </Note>
+
+    **MySQL Server**
+    
+    The application requires a MySQL server instance to connect to. Install MySQL Server 5.7 or later:
+    - Download from [mysql.com](https://dev.mysql.com/downloads/mysql/)
+    - Or install via package manager (apt, brew, etc.)
+
+    **Recommended IDE**
+    
+    While you can use any text editor, we recommend:
+    - **IntelliJ IDEA** (Community or Ultimate)
+    - **Eclipse IDE for Java Developers**
+    - **Visual Studio Code** with Java extensions
+  </Step>
+
+  <Step title="Clone the Repository">
+    Clone the project repository to your local machine:
+
+    ```bash
+    git clone <repository-url>
+    cd mysql-sql-editor
+    ```
+
+    <Info>
+      Replace `<repository-url>` with your actual repository URL.
+    </Info>
+  </Step>
+
+  <Step title="Project Structure Overview">
+    Familiarize yourself with the project structure:
+
+    ```
+    mysql-sql-editor/
+    ├── src/                    # Source code directory
+    │   └── com/
+    │       └── app/
+    │           ├── Main.java              # Application entry point
+    │           ├── Controller/
+    │           │   └── Controller.java    # MVC Controller
+    │           ├── Model/
+    │           │   └── Model.java         # Database logic
+    │           └── View/
+    │               ├── View.java          # Login view
+    │               └── SqlEditorView.java # SQL editor view
+    ├── lib/                    # External libraries
+    │   └── mysql-connector-j-9.2.0.jar
+    └── doc/                    # Documentation
+    ```
+
+    **Key Directories:**
+    - `src/` - All Java source files organized by package (`com.app`)
+    - `lib/` - Contains MySQL Connector/J JDBC driver
+    - `doc/` - Project documentation and resources
+
+    **Architecture:**
+    
+    The application follows the **Model-View-Controller (MVC)** pattern:
+    - **Model** (`Model.java`) - Database connection and query execution
+    - **View** (`View.java`, `SqlEditorView.java`) - User interface components
+    - **Controller** (`Controller.java`) - Connects model and views, handles events
+  </Step>
+
+  <Step title="Configure Your IDE">
+    <Tabs>
+      <Tab title="IntelliJ IDEA">
+        1. Open IntelliJ IDEA and select **File → Open**
+        2. Navigate to the project directory and click **OK**
+        3. IntelliJ should automatically detect the Java project structure
+        4. **Add the MySQL JDBC driver to the project:**
+           - Go to **File → Project Structure → Libraries**
+           - Click **+** → **Java**
+           - Navigate to `lib/mysql-connector-j-9.2.0.jar` and select it
+           - Click **OK** to add it to the project
+        5. **Configure the JDK:**
+           - Go to **File → Project Structure → Project**
+           - Set **Project SDK** to JDK 8 or later
+           - Set **Project language level** to 8 or later
+        6. Mark `src` as the **Sources Root** if not already marked (right-click → Mark Directory as → Sources Root)
+
+        <Note>
+          IntelliJ IDEA provides excellent support for Java projects with automatic code completion, debugging, and refactoring tools.
+        </Note>
+      </Tab>
+
+      <Tab title="Eclipse">
+        1. Open Eclipse and select **File → Open Projects from File System**
+        2. Click **Directory** and navigate to the project folder
+        3. Click **Finish**
+        4. **Add the MySQL JDBC driver to the build path:**
+           - Right-click the project → **Build Path → Configure Build Path**
+           - Go to the **Libraries** tab
+           - Click **Add JARs** (if lib is in the project) or **Add External JARs**
+           - Navigate to `lib/mysql-connector-j-9.2.0.jar` and add it
+           - Click **Apply and Close**
+        5. **Set the JDK:**
+           - Right-click the project → **Properties → Java Build Path**
+           - Under **Libraries** tab, ensure JDK 8+ is configured
+        6. Verify that `src` is recognized as a source folder
+
+        <Note>
+          Eclipse will automatically compile Java files as you edit them.
+        </Note>
+      </Tab>
+
+      <Tab title="VS Code">
+        1. Open VS Code and install the following extensions:
+           - **Extension Pack for Java** (by Microsoft)
+           - **Language Support for Java** (by Red Hat)
+        2. Open the project folder: **File → Open Folder**
+        3. VS Code should detect the Java project automatically
+        4. **Configure the classpath:**
+           - Create or edit `.vscode/settings.json` in the project root
+           - Add the MySQL JDBC driver to the classpath:
+           ```json
+           {
+             "java.project.referencedLibraries": [
+               "lib/**/*.jar"
+             ]
+           }
+           ```
+        5. Reload the window: **Ctrl+Shift+P** → **Developer: Reload Window**
+
+        <Info>
+          VS Code's Java extensions provide IntelliSense, debugging, and testing support.
+        </Info>
+      </Tab>
+
+      <Tab title="Command Line">
+        If you prefer working from the command line without an IDE:
+
+        1. Ensure `javac` and `java` are in your PATH
+        2. Navigate to the project root directory
+        3. You're ready to compile and run (see [Building](/development/building))
+
+        <Note>
+          Command-line compilation requires manually specifying the classpath with the `-cp` flag to include the MySQL JDBC driver.
+        </Note>
+      </Tab>
+    </Tabs>
+  </Step>
+
+  <Step title="Verify Setup">
+    Test that your environment is correctly configured:
+
+    1. **Compile the project** (from the project root):
+       ```bash
+       javac -cp "lib/mysql-connector-j-9.2.0.jar" -d bin src/com/app/**/*.java src/com/app/*.java
+       ```
+
+    2. If compilation succeeds without errors, your setup is complete!
+
+    <Warning>
+      On Windows, use semicolons (`;`) instead of colons (`:`) as the classpath separator:
+      ```bash
+      javac -cp "lib/mysql-connector-j-9.2.0.jar" -d bin src/com/app/**/*.java src/com/app/*.java
+      ```
+    </Warning>
+
+    <Info>
+      For detailed build instructions, see the [Building](/development/building) guide.
+    </Info>
+  </Step>
+</Steps>
+
+## Next Steps
+
+Now that your development environment is set up:
+
+- Learn how to [build and run the application](/development/building)
+- Understand the [project dependencies](/development/dependencies)
+- Explore the [architecture components](/architecture/components) for detailed class documentation
+
+## Troubleshooting
+
+**Java version issues**
+
+If you encounter errors related to Java version compatibility:
+- Ensure you're using JDK 8 or later
+- Check your `JAVA_HOME` environment variable
+- Verify your IDE is using the correct JDK version
+
+**Classpath issues**
+
+If you see `ClassNotFoundException` for MySQL driver classes:
+- Verify `mysql-connector-j-9.2.0.jar` is in the `lib/` directory
+- Ensure the JAR is properly added to your IDE's build path or classpath
+- Check that the `-cp` flag includes the correct path to the JAR
+
+**IDE not recognizing source files**
+
+- Mark the `src` directory as a source root in your IDE
+- Refresh or reload the project
+- Check that the package structure matches the directory structure (`com/app`)

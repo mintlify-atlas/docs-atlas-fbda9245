@@ -1,0 +1,262 @@
+---
+title: "Installation"
+description: "Step-by-step guide to installing and configuring MySQL SQL Editor"
+---
+
+## Prerequisites
+
+Before installing MySQL SQL Editor, ensure your system meets the following requirements:
+
+### Java Development Kit (JDK)
+
+<Card
+  title="Java 8 or Higher"
+  icon="mug-hot"
+>
+  MySQL SQL Editor requires Java 8 (or higher) to run. The application is compatible with Java 8, 11, 17, and newer versions.
+</Card>
+
+Verify your Java installation:
+
+```bash
+java -version
+```
+
+You should see output similar to:
+
+```bash
+java version "1.8.0_XXX" or higher
+Java(TM) SE Runtime Environment (build ...)
+```
+
+<Note>
+  If Java is not installed, download it from [Oracle's website](https://www.oracle.com/java/technologies/downloads/) or install OpenJDK from your package manager.
+</Note>
+
+### MySQL Server
+
+<Card
+  title="MySQL Server 5.7+"
+  icon="database"
+>
+  A running MySQL server instance is required. This can be a local installation or a remote server you have access to.
+</Card>
+
+Verify MySQL is running:
+
+```bash
+mysql --version
+```
+
+<Info>
+  The application uses MySQL Connector/J 9.2.0 (included in the `lib/` directory), which supports MySQL 5.7 and higher, including MySQL 8.x.
+</Info>
+
+## Installation Steps
+
+<Steps>
+  <Step title="Clone or Download the Repository">
+    Download the MySQL SQL Editor source code from GitHub:
+
+    ```bash
+    git clone https://github.com/Xeak1990/ProyectoFinal.git
+    cd ProyectoFinal
+    ```
+
+    Alternatively, download and extract the ZIP file from the repository's releases page.
+  </Step>
+
+  <Step title="Verify Project Structure">
+    Ensure your project directory contains the following structure:
+
+    ```
+    ProyectoFinal/
+    ├── src/
+    │   └── com/
+    │       └── app/
+    │           ├── Main.java
+    │           ├── Controller/
+    │           │   └── Controller.java
+    │           ├── Model/
+    │           │   └── Model.java
+    │           └── View/
+    │               ├── View.java
+    │               └── SqlEditorView.java
+    └── lib/
+        └── mysql-connector-j-9.2.0.jar
+    ```
+
+    <Warning>
+      The `mysql-connector-j-9.2.0.jar` file in the `lib/` directory is **required** for database connectivity. Do not remove or modify this file.
+    </Warning>
+  </Step>
+
+  <Step title="Compile the Application">
+    Navigate to the project root directory and compile the Java source files:
+
+    ```bash
+    javac -cp "lib/mysql-connector-j-9.2.0.jar" -d bin src/com/app/**/*.java
+    ```
+
+    This command:
+    - Uses `-cp` to include the MySQL Connector JAR in the classpath
+    - Compiles all `.java` files in the `src/com/app/` directory
+    - Outputs compiled `.class` files to the `bin/` directory
+
+    <Note>
+      On Windows, use semicolon (`;`) instead of colon (`:`) as the classpath separator:
+      ```bash
+      javac -cp "lib/mysql-connector-j-9.2.0.jar" -d bin src/com/app/**/*.java
+      ```
+    </Note>
+  </Step>
+
+  <Step title="Run the Application">
+    Launch MySQL SQL Editor with the following command:
+
+    ```bash
+    java -cp "bin:lib/mysql-connector-j-9.2.0.jar" com.app.Main
+    ```
+
+    On Windows:
+    ```bash
+    java -cp "bin;lib/mysql-connector-j-9.2.0.jar" com.app.Main
+    ```
+
+    The login window should appear:
+
+    <Info>
+      The main class is `com.app.Main`, which initializes the Model, View (login window), and SqlEditorView components.
+    </Info>
+  </Step>
+</Steps>
+
+## Verify Installation
+
+After launching the application, you should see the **"Conexión a MySQL"** window with the following fields:
+
+- **Servidor** — Dropdown to select MySQL host (localhost or 127.0.0.1)
+- **Usuario** — Text field for MySQL username
+- **Contraseña** — Password field for authentication
+- **Base de datos** — Dropdown to select target database
+- **Actualizar** button — Fetches available databases from the server
+- **Conectar** button — Establishes connection to selected database
+- **Salir** button — Exits the application
+
+<Tip>
+  Try clicking **"Actualizar"** after entering your MySQL credentials. If the application successfully retrieves your database list, installation is complete!
+</Tip>
+
+## Troubleshooting Common Issues
+
+### Error: "ClassNotFoundException: com.mysql.cj.jdbc.Driver"
+
+<Warning>
+  This error means the MySQL Connector JAR is not in the classpath.
+</Warning>
+
+**Solution:**
+- Verify `mysql-connector-j-9.2.0.jar` exists in the `lib/` directory
+- Ensure you include `-cp "lib/mysql-connector-j-9.2.0.jar"` when compiling and running
+- Use the correct path separator (`:` on Unix/macOS, `;` on Windows)
+
+### Error: "Access denied for user 'root'@'localhost'"
+
+<Warning>
+  This error indicates incorrect MySQL credentials.
+</Warning>
+
+**Solution:**
+- Verify your MySQL username and password are correct
+- Ensure the MySQL user has appropriate privileges:
+  ```sql
+  GRANT ALL PRIVILEGES ON *.* TO 'your_user'@'localhost';
+  FLUSH PRIVILEGES;
+  ```
+
+### Error: "Communications link failure"
+
+<Warning>
+  This error means the application cannot connect to the MySQL server.
+</Warning>
+
+**Solution:**
+- Verify MySQL server is running:
+  ```bash
+  sudo systemctl status mysql
+  ```
+- Check that MySQL is listening on port 3306:
+  ```bash
+  netstat -an | grep 3306
+  ```
+- If connecting to a remote server, ensure firewall rules allow port 3306
+
+### Application Window Doesn't Appear
+
+**Solution:**
+- Verify Java is installed correctly: `java -version`
+- Ensure `DISPLAY` environment variable is set (Linux/macOS with X11)
+- Try running with verbose output:
+  ```bash
+  java -verbose -cp "bin:lib/mysql-connector-j-9.2.0.jar" com.app.Main
+  ```
+
+### "No se encontraron bases de datos" (No databases found)
+
+**Solution:**
+- Create a test database:
+  ```sql
+  CREATE DATABASE test_db;
+  ```
+- Verify user has permission to see databases:
+  ```sql
+  SHOW DATABASES;
+  ```
+- The application filters out system databases (`information_schema`, `mysql`, `performance_schema`, `sys`)
+
+## Configuration
+
+### Default Connection Settings
+
+The application uses the following default JDBC connection string:
+
+```java
+jdbc:mysql://[host]:3306/[database]?useSSL=false
+```
+
+Key parameters:
+- **Port:** 3306 (MySQL default)
+- **useSSL:** Disabled by default for local connections
+
+<Note>
+  For production environments connecting to remote servers, consider enabling SSL by modifying `Model.java` to use `useSSL=true` and configuring appropriate certificates.
+</Note>
+
+### Custom Server Hosts
+
+To add custom server addresses, modify the `cmbServidores` combo box initialization in `View.java:70`:
+
+```java
+cmbServidores = new JComboBox<>(new String[]{
+    "localhost", 
+    "127.0.0.1", 
+    "your-remote-host.com"
+});
+```
+
+## Next Steps
+
+Now that you've installed MySQL SQL Editor, proceed to the [Quick Start](/quickstart) guide to:
+- Launch the application
+- Connect to your first database
+- Execute your first SQL query
+- Explore the table browser and results viewer
+
+<Card
+  title="Quick Start Guide"
+  icon="rocket"
+  href="/quickstart"
+  color="#0078D7"
+>
+  Get up and running with your first database connection and query
+</Card>

@@ -1,0 +1,401 @@
+---
+title: 'Building and Running'
+description: 'Learn how to compile, run, and package the MySQL SQL Editor application'
+icon: 'hammer'
+---
+
+## Overview
+
+This guide covers how to build the MySQL SQL Editor application from source, run it during development, and package it as a distributable JAR file.
+
+## Prerequisites
+
+Before building, ensure you have:
+- Completed the [development environment setup](/development/setup)
+- JDK 8 or later installed and configured
+- MySQL Connector/J JAR in the `lib/` directory
+
+## Compilation
+
+### Using the Command Line
+
+Compile all Java source files from the project root directory:
+
+<CodeGroup>
+```bash Linux/macOS
+# Create output directory for compiled classes
+mkdir -p bin
+
+# Compile all Java files with MySQL JDBC driver in classpath
+javac -cp "lib/mysql-connector-j-9.2.0.jar" -d bin \
+  src/com/app/Main.java \
+  src/com/app/Model/Model.java \
+  src/com/app/View/View.java \
+  src/com/app/View/SqlEditorView.java \
+  src/com/app/Controller/Controller.java
+```
+
+```bash Windows
+# Create output directory for compiled classes
+mkdir bin
+
+# Compile all Java files with MySQL JDBC driver in classpath
+javac -cp "lib/mysql-connector-j-9.2.0.jar" -d bin src/com/app/Main.java src/com/app/Model/Model.java src/com/app/View/View.java src/com/app/View/SqlEditorView.java src/com/app/Controller/Controller.java
+```
+</CodeGroup>
+
+<Note>
+  The `-d bin` flag outputs compiled `.class` files to the `bin/` directory, keeping them separate from source files.
+</Note>
+
+**Compilation Flags Explained:**
+
+- `-cp "lib/mysql-connector-j-9.2.0.jar"` - Adds the MySQL JDBC driver to the classpath
+- `-d bin` - Specifies the output directory for compiled class files
+- Source files are listed explicitly to ensure proper compilation order
+
+<Warning>
+  On Windows, use semicolons (`;`) as the classpath separator if you need to include multiple JARs:
+  ```bash
+  javac -cp "lib/mysql-connector-j-9.2.0.jar;other.jar" -d bin ...
+  ```
+  On Linux/macOS, use colons (`:`).
+</Warning>
+
+### Using an IDE
+
+<Tabs>
+  <Tab title="IntelliJ IDEA">
+    **Automatic Compilation:**
+    
+    IntelliJ IDEA compiles your code automatically as you edit:
+    1. Ensure the MySQL JDBC driver is added to the project libraries (see [Setup](/development/setup#configure-your-ide))
+    2. Edit any Java file - IntelliJ will compile it automatically
+    3. Check for errors in the **Problems** tool window
+
+    **Manual Build:**
+    
+    To manually trigger a build:
+    1. Go to **Build → Build Project** (Ctrl+F9 / Cmd+F9)
+    2. Or click the hammer icon in the toolbar
+    3. Compiled classes are placed in the `out/` directory by default
+  </Tab>
+
+  <Tab title="Eclipse">
+    **Automatic Compilation:**
+    
+    Eclipse compiles automatically by default:
+    1. Ensure **Project → Build Automatically** is checked
+    2. Save any file, and Eclipse will compile it
+    3. Check the **Problems** view for compilation errors
+
+    **Manual Build:**
+    
+    To manually build:
+    1. Go to **Project → Clean...**
+    2. Select the project and click **OK**
+    3. Eclipse will rebuild the entire project
+  </Tab>
+
+  <Tab title="VS Code">
+    **Using Java Extension:**
+    
+    VS Code's Java extensions handle compilation:
+    1. Open any Java file
+    2. The Java Language Server will compile automatically
+    3. Errors appear in the **Problems** panel
+
+    **Manual Build:**
+    
+    Open the integrated terminal and use the command-line compilation method above.
+  </Tab>
+</Tabs>
+
+## Running the Application
+
+### From Command Line
+
+After compilation, run the application using the `java` command:
+
+<CodeGroup>
+```bash Linux/macOS
+# Run from the project root
+java -cp "bin:lib/mysql-connector-j-9.2.0.jar" com.app.Main
+```
+
+```bash Windows
+# Run from the project root
+java -cp "bin;lib/mysql-connector-j-9.2.0.jar" com.app.Main
+```
+</CodeGroup>
+
+<Info>
+  The classpath must include both:
+  - `bin/` - Your compiled application classes
+  - `lib/mysql-connector-j-9.2.0.jar` - The MySQL JDBC driver
+</Info>
+
+**What happens when you run:**
+
+1. The JVM loads `com.app.Main` class
+2. The `main` method executes (see `src/com/app/Main.java:22`)
+3. The application initializes the MVC components:
+   - Creates `Model` instance for database operations
+   - Creates `View` instance (login window)
+   - Creates `SqlEditorView` instance (SQL editor window, initially hidden)
+   - Creates `Controller` to wire everything together
+4. The login window appears, ready for database connection
+
+### From IDE
+
+<Tabs>
+  <Tab title="IntelliJ IDEA">
+    1. Open `src/com/app/Main.java`
+    2. Right-click anywhere in the file
+    3. Select **Run 'Main.main()'**
+    4. Or click the green play button in the gutter next to the `main` method
+
+    **Create a Run Configuration:**
+    
+    For repeated runs with custom settings:
+    1. Go to **Run → Edit Configurations...**
+    2. Click **+** → **Application**
+    3. Set:
+       - **Name:** MySQL SQL Editor
+       - **Main class:** `com.app.Main`
+       - **VM options:** (optional) `-Xmx512m` for memory settings
+    4. Click **OK**
+    5. Use the run configuration dropdown to launch the app
+  </Tab>
+
+  <Tab title="Eclipse">
+    1. Open `src/com/app/Main.java`
+    2. Right-click in the editor
+    3. Select **Run As → Java Application**
+    4. Or click the green run button in the toolbar
+
+    **Create a Run Configuration:**
+    
+    1. Go to **Run → Run Configurations...**
+    2. Right-click **Java Application** → **New Configuration**
+    3. Set:
+       - **Name:** MySQL SQL Editor
+       - **Project:** Your project name
+       - **Main class:** `com.app.Main`
+    4. Click **Apply** and **Run**
+  </Tab>
+
+  <Tab title="VS Code">
+    1. Open `src/com/app/Main.java`
+    2. Click **Run** above the `main` method
+    3. Or press **F5** to start debugging
+
+    **Using launch.json:**
+    
+    Create `.vscode/launch.json` for custom configurations:
+    ```json
+    {
+      "version": "0.2.0",
+      "configurations": [
+        {
+          "type": "java",
+          "name": "MySQL SQL Editor",
+          "request": "launch",
+          "mainClass": "com.app.Main",
+          "projectName": "mysql-sql-editor",
+          "classPaths": [
+            "${workspaceFolder}/bin",
+            "${workspaceFolder}/lib/mysql-connector-j-9.2.0.jar"
+          ]
+        }
+      ]
+    }
+    ```
+  </Tab>
+</Tabs>
+
+## Packaging as JAR
+
+### Creating an Executable JAR
+
+Package the application as a standalone JAR file that can be distributed and run anywhere:
+
+<Steps>
+  <Step title="Compile the Application">
+    First, ensure all classes are compiled (see [Compilation](#compilation) above).
+  </Step>
+
+  <Step title="Create Manifest File">
+    Create a manifest file that specifies the entry point and classpath:
+
+    ```bash
+    # Create MANIFEST.MF
+    cat > MANIFEST.MF << EOF
+    Manifest-Version: 1.0
+    Main-Class: com.app.Main
+    Class-Path: mysql-connector-j-9.2.0.jar
+    EOF
+    ```
+
+    <Note>
+      The `Class-Path` entry tells the JVM where to find the MySQL JDBC driver relative to the JAR file.
+    </Note>
+  </Step>
+
+  <Step title="Package with jar Command">
+    Create the JAR file including all compiled classes:
+
+    ```bash
+    # Create JAR with manifest
+    jar cfm mysql-sql-editor.jar MANIFEST.MF -C bin .
+    ```
+
+    This creates `mysql-sql-editor.jar` containing all compiled classes from the `bin/` directory.
+  </Step>
+
+  <Step title="Run the JAR">
+    Run the packaged application:
+
+    <CodeGroup>
+    ```bash Linux/macOS
+    # Ensure mysql-connector-j-9.2.0.jar is in the same directory
+    java -jar mysql-sql-editor.jar
+    ```
+
+    ```bash Windows
+    # Ensure mysql-connector-j-9.2.0.jar is in the same directory
+    java -jar mysql-sql-editor.jar
+    ```
+    </CodeGroup>
+
+    <Warning>
+      The MySQL JDBC driver JAR (`mysql-connector-j-9.2.0.jar`) must be in the same directory as your application JAR, or you must specify its location with `-cp`.
+    </Warning>
+  </Step>
+</Steps>
+
+### Creating a Fat JAR (JAR with Dependencies)
+
+For easier distribution, create a "fat JAR" that includes all dependencies:
+
+<CodeGroup>
+```bash Linux/macOS
+# Extract MySQL JDBC driver classes
+mkdir -p temp
+cd temp
+jar xf ../lib/mysql-connector-j-9.2.0.jar
+cd ..
+
+# Copy compiled classes
+cp -r bin/* temp/
+
+# Create fat JAR
+jar cfe mysql-sql-editor-fat.jar com.app.Main -C temp .
+
+# Clean up
+rm -rf temp
+```
+
+```bash Windows
+# Extract MySQL JDBC driver classes
+mkdir temp
+cd temp
+jar xf ..\lib\mysql-connector-j-9.2.0.jar
+cd ..
+
+# Copy compiled classes
+xcopy bin\* temp\ /E /I
+
+# Create fat JAR
+jar cfe mysql-sql-editor-fat.jar com.app.Main -C temp .
+
+# Clean up
+rmdir /S /Q temp
+```
+</CodeGroup>
+
+<Info>
+  The fat JAR can be run with a simple `java -jar mysql-sql-editor-fat.jar` command without needing external dependencies.
+</Info>
+
+## Build Automation
+
+For repeated builds, consider creating a build script:
+
+<CodeGroup>
+```bash build.sh (Linux/macOS)
+#!/bin/bash
+set -e
+
+echo "Cleaning previous build..."
+rm -rf bin
+mkdir -p bin
+
+echo "Compiling Java sources..."
+javac -cp "lib/mysql-connector-j-9.2.0.jar" -d bin \
+  src/com/app/Main.java \
+  src/com/app/Model/Model.java \
+  src/com/app/View/View.java \
+  src/com/app/View/SqlEditorView.java \
+  src/com/app/Controller/Controller.java
+
+echo "Build successful!"
+echo "Run with: java -cp \"bin:lib/mysql-connector-j-9.2.0.jar\" com.app.Main"
+```
+
+```batch build.bat (Windows)
+@echo off
+echo Cleaning previous build...
+if exist bin rmdir /S /Q bin
+mkdir bin
+
+echo Compiling Java sources...
+javac -cp "lib/mysql-connector-j-9.2.0.jar" -d bin src/com/app/Main.java src/com/app/Model/Model.java src/com/app/View/View.java src/com/app/View/SqlEditorView.java src/com/app/Controller/Controller.java
+
+if %ERRORLEVEL% EQU 0 (
+  echo Build successful!
+  echo Run with: java -cp "bin;lib/mysql-connector-j-9.2.0.jar" com.app.Main
+) else (
+  echo Build failed!
+  exit /b 1
+)
+```
+</CodeGroup>
+
+Make the script executable and run it:
+
+```bash
+# Linux/macOS
+chmod +x build.sh
+./build.sh
+
+# Windows
+build.bat
+```
+
+## Troubleshooting
+
+**NoClassDefFoundError: com/mysql/cj/jdbc/Driver**
+
+The MySQL JDBC driver is not in the classpath. Ensure:
+- The JAR is in the `lib/` directory
+- Your classpath includes `lib/mysql-connector-j-9.2.0.jar`
+
+**Error: Could not find or load main class com.app.Main**
+
+Check that:
+- The `bin/` directory is in your classpath
+- The package structure is correct: `bin/com/app/Main.class`
+- You're using the fully qualified class name: `com.app.Main`
+
+**Compilation errors about missing symbols**
+
+- Ensure all source files are compiled together
+- Check that the MySQL JDBC driver is in the compilation classpath
+- Verify you're using JDK 8 or later
+
+## Next Steps
+
+- Learn about [project dependencies](/development/dependencies)
+- Explore the [architecture components](/architecture/components) for detailed class documentation
+- Review the [MVC pattern](/architecture/mvc-pattern) to understand the design

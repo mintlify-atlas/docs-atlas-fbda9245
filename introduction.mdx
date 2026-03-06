@@ -1,0 +1,186 @@
+---
+title: "Introduction"
+description: "Learn about MySQL SQL Editor's features, architecture, and capabilities"
+---
+
+## What is MySQL SQL Editor?
+
+MySQL SQL Editor is a desktop application built with Java Swing that provides a powerful yet intuitive interface for managing MySQL databases. It enables developers, database administrators, and analysts to connect to MySQL servers, write SQL queries, and visualize results in a clean, organized interface.
+
+The application follows the **Model-View-Controller (MVC)** architectural pattern, ensuring clean separation of concerns, maintainability, and scalability.
+
+## Who Is It For?
+
+<CardGroup cols={2}>
+  <Card
+    title="Database Administrators"
+    icon="user-gear"
+  >
+    Manage multiple databases, execute administrative queries, and monitor table structures efficiently
+  </Card>
+  <Card
+    title="Developers"
+    icon="code"
+  >
+    Test queries, debug database interactions, and explore schema structures during development
+  </Card>
+  <Card
+    title="Data Analysts"
+    icon="chart-simple"
+  >
+    Query databases to extract insights and view results in an organized tabular format
+  </Card>
+  <Card
+    title="Students"
+    icon="graduation-cap"
+  >
+    Learn SQL and database concepts with a user-friendly visual interface
+  </Card>
+</CardGroup>
+
+## Key Capabilities
+
+### Database Connection Management
+
+Establish secure connections to local or remote MySQL servers with built-in authentication. The application supports:
+
+- Connection to multiple MySQL server hosts (localhost, 127.0.0.1, or custom)
+- User authentication with username and password
+- Dynamic database discovery and selection
+- Seamless database switching without restarting
+
+### SQL Query Execution
+
+Write and execute SQL queries with a dedicated editor featuring:
+
+- Monospace font (Consolas) for better code readability
+- Support for all SQL statement types: `SELECT`, `INSERT`, `UPDATE`, `DELETE`, `CREATE TABLE`, `TRUNCATE`, and more
+- Real-time query execution with asynchronous processing (SwingWorker)
+- Automatic result display with column headers and organized rows
+
+### Visual Results Display
+
+View query results in a clean, tabular format with:
+
+- Automatic column width adjustment
+- Grid-based result presentation
+- System messages for non-SELECT queries (rows affected)
+- Automatic refresh after data modification queries
+
+### Table Browser
+
+Explore database structure with an integrated table browser:
+
+- List all tables in the connected database
+- Quick-select functionality with double-click to generate `SELECT` queries
+- Real-time table list updates
+- Visual feedback for empty databases
+
+## Technology Stack
+
+MySQL SQL Editor is built with proven, enterprise-grade technologies:
+
+<CardGroup cols={2}>
+  <Card
+    title="Java Swing"
+    icon="window-maximize"
+  >
+    Desktop UI framework for building responsive, cross-platform graphical interfaces
+  </Card>
+  <Card
+    title="JDBC API"
+    icon="plug"
+  >
+    Java Database Connectivity for seamless MySQL integration
+  </Card>
+  <Card
+    title="MySQL Connector/J 9.2.0"
+    icon="database"
+  >
+    Official MySQL driver for reliable database communication
+  </Card>
+  <Card
+    title="MVC Architecture"
+    icon="sitemap"
+  >
+    Clean separation between Model, View, and Controller components
+  </Card>
+</CardGroup>
+
+### Architecture Highlights
+
+The application is structured into three main components:
+
+- **Model** (`Model.java`) — Handles all database operations including connection management, query execution, and metadata retrieval
+- **View** (`View.java`, `SqlEditorView.java`) — Provides the graphical user interface with custom styling and event handling
+- **Controller** (`Controller.java`) — Manages interaction between Model and View using SwingWorker for asynchronous operations
+
+## Why Use MySQL SQL Editor?
+
+<CardGroup cols={3}>
+  <Card
+    title="Lightweight"
+    icon="feather"
+  >
+    No complex installation process—just Java and MySQL required
+  </Card>
+  <Card
+    title="Fast"
+    icon="bolt"
+  >
+    Asynchronous query execution keeps the UI responsive even with large datasets
+  </Card>
+  <Card
+    title="Intuitive"
+    icon="hand-pointer"
+  >
+    Clean interface with custom styling (#0078D7 primary color) and visual feedback
+  </Card>
+  <Card
+    title="Cross-Platform"
+    icon="desktop"
+  >
+    Runs on Windows, macOS, and Linux with Java 8+
+  </Card>
+  <Card
+    title="Open Source"
+    icon="code-branch"
+  >
+    Fully open source with clean, well-documented code
+  </Card>
+  <Card
+    title="Educational"
+    icon="book"
+  >
+    Excellent reference implementation of MVC pattern in Java
+  </Card>
+</CardGroup>
+
+## Get Started
+
+<CardGroup cols={2}>
+  <Card
+    title="Installation Guide"
+    icon="download"
+    href="/installation"
+    color="#0078D7"
+  >
+    Set up Java, MySQL, and the application in minutes
+  </Card>
+  <Card
+    title="Quick Start"
+    icon="rocket"
+    href="/quickstart"
+    color="#0078D7"
+  >
+    Execute your first query and explore the interface
+  </Card>
+</CardGroup>
+
+## Next Steps
+
+Ready to dive in? Start with the [Installation Guide](/installation) to set up your environment, then follow the [Quick Start](/quickstart) tutorial to connect to your first database and run queries.
+
+<Tip>
+  The application automatically filters out system databases (`information_schema`, `mysql`, `performance_schema`, `sys`) to keep your database list clean and focused.
+</Tip>

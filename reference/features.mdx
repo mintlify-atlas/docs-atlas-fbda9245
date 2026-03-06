@@ -1,0 +1,671 @@
+---
+title: Features Reference
+description: Comprehensive reference of all features in the MySQL SQL Editor
+---
+
+## Overview
+
+This reference documents all features available in the MySQL SQL Editor, including database connection management, query execution, result handling, and asynchronous operations.
+
+---
+
+## Core Features
+
+<AccordionGroup>
+  <Accordion title="Database Connection Management" icon="database">
+    **Source:** `Controller.java:149-186`, `Model.java:53-59`
+    
+    ### Connection Process
+    
+    The application establishes connections using JDBC with the following parameters:
+    
+    **Connection URL Format:**
+    ```
+    jdbc:mysql://{host}:3306/{database}?useSSL=false
+    ```
+    
+    **Supported Servers:**
+    - `localhost`
+    - `127.0.0.1`
+    - Custom server addresses (via combo box)
+    
+    ### Validation
+    
+    **Pre-Connection Checks** (`Controller.java:84-101`):
+    1. Username is not empty
+    2. Password is not empty
+    3. Database is selected (for connection)
+    
+    **Error Messages:**
+    - "El usuario es requerido" - Username required
+    - "La contraseña es requerida" - Password required
+    - "Debe seleccionar una base de datos" - Database selection required
+    
+    ### Async Execution
+    
+    Connection operations use `SwingWorker` to prevent UI freezing:
+    
+    ```java
+    SwingWorker<Boolean, Void> worker = new SwingWorker<>() {
+        @Override
+        protected Boolean doInBackground() throws Exception {
+            modelo.conectar(
+                loginView.getServidor(),
+                loginView.getBaseDatosSeleccionada(),
+                loginView.getUsuario(),
+                loginView.getPassword()
+            );
+            return true;
+        }
+    };
+    ```
+    
+    ### Post-Connection Actions
+    
+    After successful connection:
+    1. Database name is set in editor view (`SqlEditorView.java:291-299`)
+    2. Table list is populated (`Controller.java:172-173`)
+    3. Login view is hidden
+    4. Editor view is displayed
+    
+    <Note>
+      Connection state is stored in `Model.conexion` (`Model.java:14`) and reused for all subsequent queries.
+    </Note>
+  </Accordion>
+  
+  <Accordion title="Database Discovery" icon="magnifying-glass">
+    **Source:** `Controller.java:107-143`, `Model.java:26-42`
+    
+    ### Fetching Available Databases
+    
+    The "Actualizar" button retrieves all accessible databases from the MySQL server.
+    
+    **SQL Query:**
+    ```sql
+    SHOW DATABASES
+    ```
+    
+    **System Database Filtering** (`Model.java:36-38`):
+    
+    The following system databases are excluded from the list:
+    - `information_schema`
+    - `mysql`
+    - `performance_schema`
+    - `sys`
+    
+    **Filter Regex:**
+    ```java
+    if (!nombreBD.matches("information_schema|mysql|performance_schema|sys")) {
+        basesDatos.add(nombreBD);
+    }
+    ```
+    
+    ### Empty Database Handling
+    
+    If no user databases are found:
+    - Error message: "No se encontraron bases de datos"
+    - Combo box remains empty
+    - User must create a database via external tools
+    
+    ### Success Feedback
+    
+    On successful retrieval:
+    - Combo box is populated with database names
+    - Success dialog: "Bases de datos actualizadas correctamente"
+    
+    <Warning>
+      This operation requires valid credentials but does NOT establish a persistent connection. It creates a temporary connection that is closed immediately after fetching the database list.
+    </Warning>
+  </Accordion>
+  
+  <Accordion title="SQL Query Execution" icon="code">
+    **Source:** `Controller.java:234-264`, `Model.java:101-154`
+    
+    ### Query Types
+    
+    The application handles two types of SQL queries:
+    
+    #### 1. SELECT Queries
+    
+    **Detection:** `Model.java:106`
+    ```java
+    if (trimmedQuery.startsWith("select"))
+    ```
+    
+    **Process:**
+    1. Execute query using `Statement.executeQuery()`
+    2. Extract metadata from `ResultSetMetaData`
+    3. Create `DefaultTableModel` with column names
+    4. Iterate through result set and add rows
+    5. Display results in `tblResultados`
+    
+    **Column Extraction** (`Model.java:108-113`):
+    ```java
+    ResultSetMetaData meta = rs.getMetaData();
+    int columnas = meta.getColumnCount();
+    
+    for (int i = 1; i <= columnas; i++) {
+        modelo.addColumn(meta.getColumnName(i));
+    }
+    ```
+    
+    #### 2. Modification Queries
+    
+    **Types:** INSERT, UPDATE, DELETE, CREATE, ALTER, DROP, TRUNCATE
+    
+    **Process:**
+    1. Execute using `Statement.executeUpdate()`
+    2. Get affected row count
+    3. Extract table name from query (`Model.java:163-191`)
+    4. If table found, display updated table contents
+    5. Otherwise, display affected row count
+    
+    **Table Name Extraction** (`Model.java:163-191`):
+    
+    Supports the following patterns:
+    - `CREATE TABLE {table_name}`
+    - `INSERT INTO {table_name}`
+    - `UPDATE {table_name}`
+    - `DELETE FROM {table_name}`
+    - `TRUNCATE TABLE {table_name}`
+    
+    **Example:**
+    ```java
+    // Query: "INSERT INTO users VALUES (1, 'John')"
+    // Result: Displays updated 'users' table contents
+    
+    // Query: "DROP TABLE old_data"
+    // Result: Displays "Filas afectadas: 0"
+    ```
+    
+    ### Pre-Execution Validation
+    
+    **Check:** Query is not empty (`Controller.java:235-239`)
+    
+    ```java
+    if(editorView.getConsulta().trim().isEmpty()) {
+        JOptionPane.showMessageDialog(editorView,
+            "Ingrese una consulta SQL",
+            "Advertencia", JOptionPane.WARNING_MESSAGE);
+        return;
+    }
+    ```
+    
+    ### Async Execution
+    
+    All queries execute in background threads using `SwingWorker<DefaultTableModel, Void>`:
+    
+    ```java
+    SwingWorker<DefaultTableModel, Void> worker = new SwingWorker<>() {
+        @Override
+        protected DefaultTableModel doInBackground() throws Exception {
+            return modelo.ejecutarConsulta(editorView.getConsulta());
+        }
+        
+        @Override
+        protected void done() {
+            // Update UI with results
+        }
+    };
+    ```
+    
+    <Tip>
+      The query trimming and lowercase conversion happens in the Model layer, not the Controller, ensuring consistent processing.
+    </Tip>
+  </Accordion>
+  
+  <Accordion title="Result Display" icon="table">
+    **Source:** `SqlEditorView.java:263-268`, `Controller.java:250-253`
+    
+    ### Table Model Update
+    
+    Results are displayed using Swing's `DefaultTableModel`:
+    
+    ```java
+    editorView.setResultados(modelo);
+    ```
+    
+    ### Column Width Adjustment
+    
+    **Default Width:** 150 pixels per column (`SqlEditorView.java:265-267`)
+    
+    ```java
+    for (int i = 0; i < tblResultados.getColumnModel().getColumnCount(); i++) {
+        tblResultados.getColumnModel().getColumn(i).setPreferredWidth(150);
+    }
+    ```
+    
+    ### Row Data Handling
+    
+    **Null Values:** Displayed as "null" (handled by `ResultSet.getObject()`)
+    
+    **Data Types:** All column types are preserved from the database:
+    - Integers → Integer objects
+    - Strings → String objects
+    - Dates → Date/Timestamp objects
+    - Decimals → BigDecimal objects
+    
+    ### System Messages
+    
+    **Success Message:**
+    ```java
+    editorView.setMensajeSistema("Consulta ejecutada correctamente");
+    ```
+    
+    **Error Message:**
+    ```java
+    editorView.setMensajeSistema("Error: " + ex.getMessage());
+    ```
+    
+    **Modification Result:**
+    ```
+    Filas afectadas: {count}
+    ```
+    
+    <Note>
+      The results table (`tblResultados`) uses `setFillsViewportHeight(true)` to expand to fill available space, providing a better viewing experience for small result sets.
+    </Note>
+  </Accordion>
+  
+  <Accordion title="Table Browsing" icon="list">
+    **Source:** `Controller.java:192-212`, `Model.java:78-90`
+    
+    ### Table List Population
+    
+    **Method:** `Model.obtenerTablasDeBaseDatos()`
+    
+    **Process:**
+    1. Get database metadata using `Connection.getMetaData()`
+    2. Get current catalog using `Connection.getCatalog()`
+    3. Query metadata for tables of type "TABLE"
+    4. Extract table names from result set
+    
+    **JDBC Metadata Query** (`Model.java:81-87`):
+    ```java
+    DatabaseMetaData metaData = conexion.getMetaData();
+    String catalogoActual = conexion.getCatalog();
+    try (ResultSet rs = metaData.getTables(catalogoActual, null, "%", new String[]{"TABLE"})) {
+        while (rs.next()) {
+            tablas.add(rs.getString("TABLE_NAME"));
+        }
+    }
+    ```
+    
+    **Exclusions:** Views, system tables, and temporary tables are not included
+    
+    ### Refresh Functionality
+    
+    The "Refrescar tablas" button re-fetches the table list (`Controller.java:192-212`):
+    
+    ```java
+    editorView.getBtnRefrescarTablas().addActionListener(e -> refrescarTablas());
+    ```
+    
+    **Use Cases:**
+    - After creating new tables
+    - After dropping tables
+    - When schema changes are made externally
+    
+    ### Double-Click Quick Query
+    
+    **Source:** `SqlEditorView.java:146-156`
+    
+    When a table is double-clicked, a SELECT query is auto-generated:
+    
+    ```java
+    String consulta = "SELECT * FROM " + tablaSeleccionada + " LIMIT 100";
+    txtConsulta.setText(consulta);
+    ```
+    
+    **Query Template:**
+    ```sql
+    SELECT * FROM {table_name} LIMIT 100
+    ```
+    
+    <Tip>
+      The LIMIT 100 clause prevents accidentally loading huge tables. Users can modify or remove this limit before executing.
+    </Tip>
+    
+    ### Empty Table List Handling
+    
+    If no tables exist:
+    - Tooltip: "No se encontraron tablas"
+    - List appears empty
+    - No error dialog is shown
+  </Accordion>
+  
+  <Accordion title="Asynchronous Operations" icon="clock">
+    **Source:** `Controller.java` (all async methods)
+    
+    ### SwingWorker Implementation
+    
+    All long-running operations use `SwingWorker` to prevent UI freezing:
+    
+    #### 1. Database List Loading
+    
+    **Worker Type:** `SwingWorker<List<String>, Void>`
+    
+    **Source:** `Controller.java:112-142`
+    
+    ```java
+    SwingWorker<List<String>, Void> worker = new SwingWorker<>() {
+        @Override
+        protected List<String> doInBackground() throws Exception {
+            return modelo.obtenerTodasLasBasesDatos(
+                loginView.getServidor(),
+                loginView.getUsuario(),
+                loginView.getPassword()
+            );
+        }
+        
+        @Override
+        protected void done() {
+            loginView.bloquearInterfaz(false);
+            try {
+                List<String> bases = get();
+                loginView.setBasesDatos(bases);
+            } catch (Exception ex) {
+                loginView.mostrarError("Error: " + ex.getMessage());
+            }
+        }
+    };
+    ```
+    
+    #### 2. Database Connection
+    
+    **Worker Type:** `SwingWorker<Boolean, Void>`
+    
+    **Source:** `Controller.java:152-186`
+    
+    #### 3. Query Execution
+    
+    **Worker Type:** `SwingWorker<DefaultTableModel, Void>`
+    
+    **Source:** `Controller.java:242-264`
+    
+    #### 4. Table Refresh
+    
+    **Worker Type:** `SwingWorker<List<String>, Void>`
+    
+    **Source:** `Controller.java:193-212`
+    
+    ### UI Locking Pattern
+    
+    All async operations follow this pattern:
+    
+    ```java
+    // Before execution
+    loginView.bloquearInterfaz(true);
+    
+    // Start worker
+    worker.execute();
+    
+    // In done() method
+    loginView.bloquearInterfaz(false);
+    ```
+    
+    **Benefits:**
+    - Prevents concurrent operations
+    - Provides visual feedback (grayed-out controls)
+    - Prevents invalid input during processing
+    
+    ### Error Handling in Workers
+    
+    All `done()` methods use try-catch to handle exceptions:
+    
+    ```java
+    @Override
+    protected void done() {
+        try {
+            Result result = get(); // May throw ExecutionException
+            // Process result
+        } catch (Exception ex) {
+            // Display error to user
+        }
+    }
+    ```
+    
+    <Warning>
+      Never perform UI updates in `doInBackground()`. Always update UI components in the `done()` method on the Event Dispatch Thread.
+    </Warning>
+  </Accordion>
+  
+  <Accordion title="Error Handling" icon="triangle-exclamation">
+    **Source:** `Controller.java` (error handling blocks), `Model.java` (SQLException throws)
+    
+    ### Exception Types
+    
+    #### SQLException
+    
+    **Thrown By:**
+    - `Model.obtenerTodasLasBasesDatos()` - Invalid credentials, network errors
+    - `Model.conectar()` - Connection failures, invalid database
+    - `Model.ejecutarConsulta()` - Syntax errors, constraint violations
+    - `Model.desconectar()` - Connection closing errors
+    
+    **Handling:**
+    ```java
+    catch (Exception ex) {
+        loginView.mostrarError("Error: " + ex.getMessage());
+    }
+    ```
+    
+    ### Error Display Methods
+    
+    #### Login View Errors
+    
+    **Method:** `View.mostrarError(String mensaje)`
+    
+    **Display:** Red label below input fields (`View.java:223-225`)
+    
+    **Common Messages:**
+    - "El usuario es requerido"
+    - "La contraseña es requerida"
+    - "Debe seleccionar una base de datos"
+    - "Error: {SQLException.getMessage()}"
+    - "Error de conexión: {message}"
+    - "No se encontraron bases de datos"
+    
+    #### Editor View Errors
+    
+    **Method 1:** `SqlEditorView.setMensajeSistema(String mensaje)`
+    
+    **Display:** Gray label above results table
+    
+    **Method 2:** `JOptionPane.showMessageDialog()`
+    
+    **Display:** Modal error dialog
+    
+    **Common Messages:**
+    - "Ingrese una consulta SQL" (Warning)
+    - "Error en la consulta: {message}" (Error)
+    - "Error al obtener tablas: {message}" (Error)
+    - "Error al desconectar: {message}" (Error)
+    
+    ### Query Validation Errors
+    
+    **Empty Query:**
+    ```java
+    if(editorView.getConsulta().trim().isEmpty()) {
+        JOptionPane.showMessageDialog(editorView,
+            "Ingrese una consulta SQL",
+            "Advertencia", JOptionPane.WARNING_MESSAGE);
+        return;
+    }
+    ```
+    
+    **Syntax Errors:**
+    - Caught from `SQLException` during execution
+    - Displayed in both system message and error dialog
+    - Result table is not modified
+    
+    <Note>
+      The application does not perform client-side SQL validation. All syntax and semantic errors are caught at execution time when MySQL processes the query.
+    </Note>
+  </Accordion>
+  
+  <Accordion title="Database Disconnection" icon="plug">
+    **Source:** `Controller.java:217-228`, `Model.java:66-70`
+    
+    ### Disconnect Process
+    
+    Triggered by the "Cambiar BD" button with confirmation dialog:
+    
+    ```java
+    int confirm = JOptionPane.showConfirmDialog(editorView,
+        "¿Desea desconectarse y cambiar de base de datos?",
+        "Confirmar",
+        JOptionPane.YES_NO_OPTION);
+    
+    if (confirm == JOptionPane.YES_OPTION) {
+        desconectar();
+    }
+    ```
+    
+    ### Cleanup Steps
+    
+    1. Close JDBC connection (`Model.java:66-70`):
+    ```java
+    if (conexion != null && !conexion.isClosed()) {
+        conexion.close();
+    }
+    ```
+    
+    2. Reset editor view database status:
+    ```java
+    editorView.setBaseDeDatos(null);
+    ```
+    
+    3. Hide editor view, show login view:
+    ```java
+    editorView.setVisible(false);
+    loginView.setVisible(true);
+    ```
+    
+    ### State After Disconnection
+    
+    - Connection object is null
+    - Editor view displays "Estado: No conectado"
+    - Table list is not cleared (but is stale)
+    - Query text is preserved
+    - Results table is preserved
+    
+    <Tip>
+      Previous credentials remain in the login form, allowing quick reconnection with the same or different settings.
+    </Tip>
+  </Accordion>
+  
+  <Accordion title="UI State Management" icon="sliders">
+    **Source:** `View.java:239-252`
+    
+    ### Interface Locking
+    
+    **Method:** `bloquearInterfaz(boolean bloquear)`
+    
+    **Purpose:** Disable user input during async operations
+    
+    **Affected Components:**
+    - Server selector (`cmbServidores`)
+    - Username field (`txtUsuario`)
+    - Password field (`txtPassword`)
+    - Database selector (`cbBasesDatos`)
+    - Refresh button (`btnActualizarBases`)
+    - Connect button (`btnConectar`)
+    
+    **Visual Changes:**
+    
+    When locked (`bloquear = true`):
+    - All components disabled
+    - Background color changes to `#F0F0F0` (light gray)
+    
+    When unlocked (`bloquear = false`):
+    - All components enabled
+    - Background color restored to white
+    
+    **Usage Pattern:**
+    ```java
+    loginView.bloquearInterfaz(true);  // Lock before async operation
+    worker.execute();                   // Start background task
+    // ... in worker.done() ...
+    loginView.bloquearInterfaz(false); // Unlock after completion
+    ```
+    
+    ### State Clearing
+    
+    **Method:** `View.limpiarEstado()`
+    
+    **Source:** `View.java:230-232`
+    
+    Clears the error message label before new operations:
+    ```java
+    loginView.limpiarEstado();
+    validarCamposLogin(true);
+    ```
+    
+    ### Editor Clearing
+    
+    **Method:** `SqlEditorView.limpiar()`
+    
+    **Source:** `SqlEditorView.java:281-285`
+    
+    Resets all editor components:
+    ```java
+    txtConsulta.setText("");
+    tblResultados.setModel(new DefaultTableModel());
+    lblMensajeSistema.setText(" ");
+    ```
+    
+    <Note>
+      The "Limpiar" button only clears the editor content, not the connection state or table list.
+    </Note>
+  </Accordion>
+</AccordionGroup>
+
+---
+
+## Feature Matrix
+
+| Feature | Login View | Editor View | Async | Source |
+|---------|------------|-------------|-------|--------|
+| Database Discovery | ✓ | | ✓ | `Controller.java:107-143` |
+| Database Connection | ✓ | | ✓ | `Controller.java:149-186` |
+| SQL Execution | | ✓ | ✓ | `Controller.java:234-264` |
+| Table Browsing | | ✓ | ✓ | `Controller.java:192-212` |
+| Result Display | | ✓ | | `SqlEditorView.java:263-268` |
+| Error Handling | ✓ | ✓ | | Throughout |
+| UI Locking | ✓ | | | `View.java:239-252` |
+| Disconnection | | ✓ | | `Controller.java:217-228` |
+| Quick Query | | ✓ | | `SqlEditorView.java:146-156` |
+
+---
+
+## Connection String Reference
+
+### Format
+
+```
+jdbc:mysql://{host}:3306/{database}?useSSL=false
+```
+
+### Parameters
+
+- `{host}` - Server address (localhost, 127.0.0.1, or custom)
+- `3306` - Default MySQL port (hardcoded)
+- `{database}` - Target database name (or empty for database discovery)
+- `useSSL=false` - Disables SSL for local development
+
+### Examples
+
+**Database Discovery:**
+```
+jdbc:mysql://localhost:3306/?useSSL=false
+```
+
+**Database Connection:**
+```
+jdbc:mysql://localhost:3306/my_app_db?useSSL=false
+```
+
+<Warning>
+  The application does not support custom ports. All connections use port 3306.
+</Warning>

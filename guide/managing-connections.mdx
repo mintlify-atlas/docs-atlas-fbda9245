@@ -1,0 +1,424 @@
+---
+title: "Managing Connections"
+description: "Learn how to manage database connections, switch databases, and refresh table listings"
+icon: "plug-circle-check"
+---
+
+Effectively managing your database connections ensures smooth workflow and access to the right data at the right time.
+
+## Active Connection Display
+
+The current connection status is displayed in the SQL Editor's connection panel:
+
+```java
+// SqlEditorView.java - Line 291
+public void setBaseDeDatos(String nombreBD) {
+    if (nombreBD == null || nombreBD.isEmpty()) {
+        txtBaseDeDatos.setText("Estado: No conectado");
+        txtBaseDeDatos.setToolTipText("No hay conexión activa");
+    } else {
+        txtBaseDeDatos.setText("Conectado a: " + nombreBD);
+        txtBaseDeDatos.setToolTipText("Conexión activa a: " + nombreBD);
+    }
+}
+```
+
+<CardGroup cols={2}>
+  <Card title="Connected State" icon="circle-check" color="#0078D7">
+    Shows "Conectado a: [database_name]" when actively connected to a database.
+  </Card>
+  <Card title="Disconnected State" icon="circle-xmark" color="#D13438">
+    Shows "Estado: No conectado" when no active connection exists.
+  </Card>
+</CardGroup>
+
+## Connection Status Field
+
+The connection status is displayed in a non-editable text field:
+
+```java
+// SqlEditorView.java - Line 87
+txtBaseDeDatos = new JTextField();
+txtBaseDeDatos.setEditable(false);
+txtBaseDeDatos.setFont(FUENTE_NORMAL);
+txtBaseDeDatos.setBackground(new Color(230, 240, 255));
+```
+
+<Info>
+  The status field uses a light blue background (#E6F0FF) to distinguish it from editable components and provides tooltip information on hover.
+</Info>
+
+## Switching Databases
+
+To change to a different database, use the **Cambiar BD** (Change Database) button:
+
+### Confirmation Dialog
+
+```java
+// Controller.java - Line 66
+editorView.getBtnCambiarBD().addActionListener(e -> {
+    int confirm = JOptionPane.showConfirmDialog(editorView,
+        "¿Desea desconectarse y cambiar de base de datos?",
+        "Confirmar",
+        JOptionPane.YES_NO_OPTION);
+
+    if (confirm == JOptionPane.YES_OPTION) {
+        desconectar();
+    }
+});
+```
+
+<Steps>
+  <Step title="Click Cambiar BD Button">
+    Click the **Cambiar BD** button in the SQL Editor interface. This button is located in the right panel near the connection status.
+
+    ```java
+    // SqlEditorView.java - Line 106
+    btnCambiarBD = new JButton("Cambiar BD");
+    estilizarBoton(btnCambiarBD, false);
+    ```
+  </Step>
+
+  <Step title="Confirm Disconnection">
+    A confirmation dialog appears asking: "¿Desea desconectarse y cambiar de base de datos?" (Do you want to disconnect and change database?)
+
+    Choose:
+    - **Yes**: Proceed with disconnection
+    - **No**: Cancel and maintain current connection
+  </Step>
+
+  <Step title="Return to Login">
+    If confirmed, the application disconnects and returns you to the login screen:
+
+    ```java
+    // Controller.java - Line 217
+    private void desconectar() {
+        try {
+            modelo.desconectar();
+            editorView.setBaseDeDatos(null);
+            editorView.setVisible(false);
+            loginView.setVisible(true);
+        } catch (SQLException ex) {
+            JOptionPane.showMessageDialog(editorView,
+                "Error al desconectar: " + ex.getMessage(),
+                "Error", JOptionPane.ERROR_MESSAGE);
+        }
+    }
+    ```
+  </Step>
+
+  <Step title="Connect to New Database">
+    From the login screen, select a different database and click **Conectar** to establish a new connection.
+  </Step>
+</Steps>
+
+<Warning>
+  Switching databases disconnects your current session. Any unsaved queries in the editor will be lost. Copy important queries before switching.
+</Warning>
+
+## Disconnecting from Database
+
+The disconnection process closes the MySQL connection properly:
+
+```java
+// Model.java - Line 66
+public void desconectar() throws SQLException {
+    if (conexion != null && !conexion.isClosed()) {
+        conexion.close();
+    }
+}
+```
+
+### What Happens During Disconnection
+
+<Accordion title="Connection Cleanup">
+  The JDBC connection is properly closed:
+  ```java
+  conexion.close();
+  ```
+  This releases database resources and terminates the session.
+</Accordion>
+
+<Accordion title="UI State Reset">
+  The editor view is reset to disconnected state:
+  ```java
+  editorView.setBaseDeDatos(null); // Shows "Estado: No conectado"
+  ```
+</Accordion>
+
+<Accordion title="View Switching">
+  The SQL Editor closes and login view reopens:
+  ```java
+  editorView.setVisible(false);
+  loginView.setVisible(true);
+  ```
+</Accordion>
+
+### Error Handling
+
+```java
+// Controller.java - Line 224
+catch (SQLException ex) {
+    JOptionPane.showMessageDialog(editorView,
+        "Error al desconectar: " + ex.getMessage(),
+        "Error", JOptionPane.ERROR_MESSAGE);
+}
+```
+
+<Note>
+  If disconnection fails, an error dialog displays the specific SQL error message. This is rare but can occur if the connection is already closed or network issues exist.
+</Note>
+
+## Refreshing Table Listings
+
+The **Refrescar tablas** (Refresh Tables) button updates the list of available tables:
+
+```java
+// Controller.java - Line 64
+editorView.getBtnRefrescarTablas().addActionListener(e -> refrescarTablas());
+```
+
+### Refresh Process
+
+<Steps>
+  <Step title="Click Refresh Button">
+    Click the **Refrescar tablas** button to initiate the refresh:
+
+    ```java
+    // SqlEditorView.java - Line 126
+    btnRefrescarTablas = new JButton("Refrescar tablas");
+    estilizarBoton(btnRefrescarTablas, false);
+    ```
+  </Step>
+
+  <Step title="Fetch Tables from Database">
+    The application queries the database metadata asynchronously:
+
+    ```java
+    // Controller.java - Line 192
+    private void refrescarTablas() {
+        SwingWorker<List<String>, Void> worker = new SwingWorker<>() {
+            @Override
+            protected List<String> doInBackground() throws Exception {
+                return modelo.obtenerTablasDeBaseDatos();
+            }
+        };
+        worker.execute();
+    }
+    ```
+  </Step>
+
+  <Step title="Update Table List">
+    The table browser updates with the fresh list:
+
+    ```java
+    // Controller.java - Line 201
+    List<String> tablas = get();
+    editorView.actualizarListaTablas(tablas);
+    ```
+  </Step>
+</Steps>
+
+### When to Refresh Tables
+
+<CardGroup cols={2}>
+  <Card title="After Creating Tables" icon="plus">
+    Refresh to see newly created tables in the browser:
+    ```sql
+    CREATE TABLE new_table (id INT PRIMARY KEY);
+    ```
+    Then click **Refrescar tablas**.
+  </Card>
+  <Card title="After Dropping Tables" icon="trash">
+    Refresh to remove deleted tables from the list:
+    ```sql
+    DROP TABLE old_table;
+    ```
+    Then click **Refrescar tablas**.
+  </Card>
+  <Card title="External Changes" icon="cloud-arrow-down">
+    If another application or user modifies the database schema, refresh to see the changes.
+  </Card>
+  <Card title="Verify Structure" icon="diagram-project">
+    Periodically refresh to ensure your view matches the actual database structure.
+  </Card>
+</CardGroup>
+
+## Fetching Table Metadata
+
+The `obtenerTablasDeBaseDatos()` method retrieves the current table list:
+
+```java
+// Model.java - Line 78
+public List<String> obtenerTablasDeBaseDatos() throws SQLException {
+    List<String> tablas = new ArrayList<>();
+    if (conexion != null && !conexion.isClosed()) {
+        DatabaseMetaData metaData = conexion.getMetaData();
+        String catalogoActual = conexion.getCatalog();
+        try (ResultSet rs = metaData.getTables(catalogoActual, null, "%", new String[]{"TABLE"})) {
+            while (rs.next()) {
+                tablas.add(rs.getString("TABLE_NAME"));
+            }
+        }
+    }
+    return tablas;
+}
+```
+
+<Info>
+  The method uses JDBC `DatabaseMetaData` to retrieve only tables (not views or system tables) from the current catalog.
+</Info>
+
+### Metadata Parameters
+
+- **Catalog**: Current database name
+- **Schema Pattern**: `null` (all schemas)
+- **Table Name Pattern**: `"%"` (all tables)
+- **Types**: `["TABLE"]` (only regular tables)
+
+## Error Handling for Refresh
+
+```java
+// Controller.java - Line 204
+catch (Exception ex) {
+    JOptionPane.showMessageDialog(editorView,
+        "Error al obtener tablas: " + ex.getMessage(),
+        "Error", JOptionPane.ERROR_MESSAGE);
+}
+```
+
+Common refresh errors:
+- Connection lost or timed out
+- Insufficient permissions to view metadata
+- Database server unreachable
+
+## Table List Display
+
+The table browser shows all available tables:
+
+```java
+// SqlEditorView.java - Line 139
+modeloListaTablas = new DefaultListModel<>();
+listaTablas = new JList<>(modeloListaTablas);
+listaTablas.setFont(FUENTE_NORMAL);
+listaTablas.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
+```
+
+### Interactive Features
+
+<Accordion title="Double-Click Generation">
+  Double-clicking a table name generates a SELECT query:
+  ```java
+  // SqlEditorView.java - Line 151
+  String consulta = "SELECT * FROM " + tablaSeleccionada + " LIMIT 100";
+  txtConsulta.setText(consulta);
+  ```
+</Accordion>
+
+<Accordion title="Tooltip Information">
+  Hovering over the table list shows context:
+  ```java
+  // SqlEditorView.java - Line 315
+  listaTablas.setToolTipText("Doble clic para generar SELECT");
+  ```
+</Accordion>
+
+<Accordion title="Empty State">
+  When no tables exist:
+  ```java
+  // SqlEditorView.java - Line 313
+  listaTablas.setToolTipText("No se encontraron tablas");
+  ```
+</Accordion>
+
+## Connection State Management
+
+The application maintains connection state throughout the session:
+
+### Initialization on Connect
+
+```java
+// Controller.java - Line 169
+String nombreBD = loginView.getBaseDatosSeleccionada();
+editorView.setBaseDeDatos(nombreBD);
+
+List<String> tablas = modelo.obtenerTablasDeBaseDatos();
+editorView.actualizarListaTablas(tablas);
+```
+
+When you connect:
+1. Database name is set in the status field
+2. Tables are automatically fetched
+3. Table browser is populated
+4. SQL Editor window opens
+
+### Connection Persistence
+
+The connection remains active until:
+- You click **Cambiar BD** and confirm
+- The application exits
+- A connection error occurs
+- The database server closes the connection
+
+<Tip>
+  MySQL connections may timeout after extended inactivity. If you encounter connection errors after idle periods, simply reconnect through the login screen.
+</Tip>
+
+## Background Processing
+
+All connection operations use `SwingWorker` for non-blocking execution:
+
+```java
+// Controller.java - Line 193
+SwingWorker<List<String>, Void> worker = new SwingWorker<>() {
+    @Override
+    protected List<String> doInBackground() throws Exception {
+        return modelo.obtenerTablasDeBaseDatos();
+    }
+
+    @Override
+    protected void done() {
+        try {
+            List<String> tablas = get();
+            editorView.actualizarListaTablas(tablas);
+        } catch (Exception ex) {
+            // Error handling
+        }
+    }
+};
+```
+
+<Note>
+  Background processing ensures the UI remains responsive during network operations and database queries.
+</Note>
+
+## Best Practices
+
+<CardGroup cols={2}>
+  <Card title="Save Queries Before Switching" icon="floppy-disk">
+    Copy important queries to an external file before changing databases to avoid losing work.
+  </Card>
+  <Card title="Refresh After Schema Changes" icon="rotate">
+    Always refresh the table list after executing DDL statements (CREATE, ALTER, DROP).
+  </Card>
+  <Card title="Verify Connection Status" icon="wifi">
+    Check the connection status field before executing queries to ensure you're connected to the correct database.
+  </Card>
+  <Card title="Use Confirmation Dialogs" icon="shield-check">
+    Read confirmation dialogs carefully before switching databases to prevent accidental disconnections.
+  </Card>
+</CardGroup>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Connecting to MySQL" icon="plug" href="/guide/connecting">
+    Learn the initial connection process
+  </Card>
+  <Card title="Writing Queries" icon="code" href="/guide/writing-queries">
+    Master SQL query writing and execution
+  </Card>
+  <Card title="Viewing Results" icon="table" href="/guide/viewing-results">
+    Understand how to interpret query results
+  </Card>
+</CardGroup>

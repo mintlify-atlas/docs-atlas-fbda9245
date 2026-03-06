@@ -1,0 +1,380 @@
+---
+title: "Writing SQL Queries"
+description: "Learn how to write and execute SQL queries in the MySQL SQL Editor"
+icon: "code"
+---
+
+The SQL Editor provides a powerful interface for writing and executing SQL queries against your connected MySQL database.
+
+## The SQL Editor Interface
+
+The main query editor is implemented in `SqlEditorView.java` and features:
+
+<CardGroup cols={2}>
+  <Card title="Query Text Area" icon="keyboard">
+    A spacious text area (`txtConsulta`) with monospace font for writing SQL statements
+  </Card>
+  <Card title="Execute Button" icon="play">
+    Run your queries with a single click using the **Ejecutar** button
+  </Card>
+  <Card title="Table Browser" icon="table">
+    Quick access to available tables with double-click query generation
+  </Card>
+  <Card title="Results Display" icon="table-cells">
+    View query results in a formatted table below the editor
+  </Card>
+</CardGroup>
+
+## Editor Configuration
+
+The query editor is configured with the following properties:
+
+```java
+// SqlEditorView.java - Line 70
+txtConsulta = new JTextArea(10, 60);
+txtConsulta.setFont(FUENTE_MONOSPACE); // Consolas, 14pt
+txtConsulta.setTabSize(2);
+txtConsulta.setLineWrap(true);
+txtConsulta.setWrapStyleWord(true);
+```
+
+<Info>
+  The editor uses a monospace font (Consolas) for better code readability and includes line wrapping for long queries.
+</Info>
+
+## Executing Queries
+
+<Steps>
+  <Step title="Write Your Query">
+    Type your SQL statement into the editor text area. The editor accepts any valid MySQL syntax.
+
+    ```sql
+    SELECT * FROM customers WHERE city = 'Boston';
+    ```
+  </Step>
+
+  <Step title="Click Execute">
+    Press the **Ejecutar** button or use the associated keyboard shortcut. The button triggers the execution process:
+
+    ```java
+    // Controller.java - Line 62
+    editorView.getBtnEjecutar().addActionListener(e -> ejecutarConsulta());
+    ```
+  </Step>
+
+  <Step title="View Results">
+    Results appear in the table below the editor. The system message displays execution status:
+
+    ```java
+    // Controller.java - Line 253
+    editorView.setMensajeSistema("Consulta ejecutada correctamente");
+    ```
+  </Step>
+</Steps>
+
+## Supported SQL Statements
+
+The `Model.ejecutarConsulta()` method supports all standard MySQL statements:
+
+### SELECT Queries
+
+SELECT statements return data in a table format:
+
+```java
+// Model.java - Line 106
+if (trimmedQuery.startsWith("select")) {
+    try (ResultSet rs = stmt.executeQuery(query)) {
+        ResultSetMetaData meta = rs.getMetaData();
+        int columnas = meta.getColumnCount();
+        // Populate table model with results
+    }
+}
+```
+
+<Accordion title="SELECT Query Examples">
+  ```sql
+  -- Basic SELECT
+  SELECT * FROM employees;
+
+  -- SELECT with WHERE clause
+  SELECT name, salary FROM employees WHERE department = 'IT';
+
+  -- SELECT with JOIN
+  SELECT e.name, d.department_name 
+  FROM employees e 
+  JOIN departments d ON e.dept_id = d.id;
+
+  -- SELECT with aggregation
+  SELECT department, COUNT(*) as employee_count 
+  FROM employees 
+  GROUP BY department;
+
+  -- SELECT with ORDER BY and LIMIT
+  SELECT * FROM products 
+  ORDER BY price DESC 
+  LIMIT 10;
+  ```
+</Accordion>
+
+### Data Modification Queries
+
+INSERT, UPDATE, DELETE, and other modification statements display affected row counts:
+
+```java
+// Model.java - Line 124
+int filasAfectadas = stmt.executeUpdate(query);
+String tabla = extraerNombreTabla(trimmedQuery);
+```
+
+<Accordion title="INSERT Statement">
+  ```sql
+  -- Insert single row
+  INSERT INTO customers (name, email, city) 
+  VALUES ('John Doe', 'john@example.com', 'Boston');
+
+  -- Insert multiple rows
+  INSERT INTO products (name, price, stock) VALUES 
+  ('Product A', 29.99, 100),
+  ('Product B', 39.99, 50),
+  ('Product C', 19.99, 200);
+  ```
+
+  The application extracts the table name from INSERT statements:
+
+  ```java
+  // Model.java - Line 169
+  else if (query.startsWith("insert into")) {
+      String[] partes = query.split("\\s+");
+      if (partes.length >= 3) {
+          return partes[2].replaceAll("`", "");
+      }
+  }
+  ```
+</Accordion>
+
+<Accordion title="UPDATE Statement">
+  ```sql
+  -- Update single column
+  UPDATE employees 
+  SET salary = 75000 
+  WHERE id = 42;
+
+  -- Update multiple columns
+  UPDATE products 
+  SET price = price * 1.10, updated_at = NOW() 
+  WHERE category = 'Electronics';
+  ```
+
+  Table name extraction for UPDATE:
+
+  ```java
+  // Model.java - Line 174
+  else if (query.startsWith("update")) {
+      String[] partes = query.split("\\s+");
+      if (partes.length >= 2) {
+          return partes[1].replaceAll("`", "");
+      }
+  }
+  ```
+</Accordion>
+
+<Accordion title="DELETE Statement">
+  ```sql
+  -- Delete with WHERE clause
+  DELETE FROM orders 
+  WHERE status = 'cancelled';
+
+  -- Delete with JOIN
+  DELETE o FROM orders o
+  JOIN customers c ON o.customer_id = c.id
+  WHERE c.inactive = 1;
+  ```
+
+  Table name extraction for DELETE:
+
+  ```java
+  // Model.java - Line 179
+  else if (query.startsWith("delete from")) {
+      String[] partes = query.split("\\s+");
+      if (partes.length >= 3) {
+          return partes[2].replaceAll("`", "");
+      }
+  }
+  ```
+</Accordion>
+
+<Accordion title="DDL Statements">
+  ```sql
+  -- Create table
+  CREATE TABLE users (
+      id INT PRIMARY KEY AUTO_INCREMENT,
+      username VARCHAR(50) NOT NULL,
+      email VARCHAR(100) UNIQUE,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+  );
+
+  -- Alter table
+  ALTER TABLE users ADD COLUMN last_login TIMESTAMP;
+
+  -- Drop table
+  DROP TABLE temporary_data;
+
+  -- Truncate table
+  TRUNCATE TABLE log_entries;
+  ```
+
+  Table name extraction for CREATE TABLE:
+
+  ```java
+  // Model.java - Line 164
+  if (query.startsWith("create table")) {
+      String[] partes = query.split("\\s+");
+      if (partes.length >= 3) {
+          return partes[2].replaceAll("`", "");
+      }
+  }
+  ```
+</Accordion>
+
+## Query Validation
+
+Before execution, the application validates that a query has been entered:
+
+```java
+// Controller.java - Line 235
+if(editorView.getConsulta().trim().isEmpty()) {
+    JOptionPane.showMessageDialog(editorView,
+        "Ingrese una consulta SQL",
+        "Advertencia", JOptionPane.WARNING_MESSAGE);
+    return;
+}
+```
+
+<Warning>
+  Empty queries will trigger a warning dialog prompting you to enter a valid SQL statement.
+</Warning>
+
+## Auto-Generated Queries
+
+The table browser list (`listaTablas`) provides a quick way to generate SELECT queries:
+
+```java
+// SqlEditorView.java - Line 146
+listaTablas.addMouseListener(new MouseAdapter() {
+    public void mouseClicked(MouseEvent evt) {
+        if (evt.getClickCount() == 2) {
+            String tablaSeleccionada = listaTablas.getSelectedValue();
+            if (tablaSeleccionada != null) {
+                String consulta = "SELECT * FROM " + tablaSeleccionada + " LIMIT 100";
+                txtConsulta.setText(consulta);
+            }
+        }
+    }
+});
+```
+
+<Tip>
+  **Quick Tip:** Double-click any table name in the "Tablas disponibles" list to automatically generate a `SELECT * FROM table_name LIMIT 100` query in the editor.
+</Tip>
+
+## Asynchronous Execution
+
+Queries are executed asynchronously to keep the UI responsive:
+
+```java
+// Controller.java - Line 242
+SwingWorker<DefaultTableModel, Void> worker = new SwingWorker<>() {
+    @Override
+    protected DefaultTableModel doInBackground() throws Exception {
+        return modelo.ejecutarConsulta(editorView.getConsulta());
+    }
+
+    @Override
+    protected void done() {
+        try {
+            DefaultTableModel modelo = get();
+            editorView.setResultados(modelo);
+            editorView.setMensajeSistema("Consulta ejecutada correctamente");
+        } catch (Exception ex) {
+            editorView.setMensajeSistema("Error: " + ex.getMessage());
+        }
+    }
+};
+```
+
+## Error Handling
+
+If a query fails, detailed error messages are displayed:
+
+```java
+// Controller.java - Line 256
+JOptionPane.showMessageDialog(editorView,
+    "Error en la consulta: " + ex.getMessage(),
+    "Error", JOptionPane.ERROR_MESSAGE);
+```
+
+Common errors include:
+- Syntax errors in SQL statements
+- Table or column doesn't exist
+- Permission denied on specific operations
+- Constraint violations (primary key, foreign key, unique)
+
+## Clearing the Editor
+
+Use the **Limpiar** (Clear) button to reset the editor:
+
+```java
+// SqlEditorView.java - Line 281
+public void limpiar() {
+    txtConsulta.setText("");
+    tblResultados.setModel(new DefaultTableModel());
+    lblMensajeSistema.setText(" ");
+}
+```
+
+<Note>
+  Clearing the editor removes the query text, results table, and system messages.
+</Note>
+
+## Query Syntax Tips
+
+<CardGroup cols={2}>
+  <Card title="Use LIMIT" icon="gauge-max">
+    Add `LIMIT` clauses to large result sets to improve performance:
+    ```sql
+    SELECT * FROM large_table LIMIT 1000;
+    ```
+  </Card>
+  <Card title="Terminate with Semicolon" icon="semicolon">
+    While optional for single queries, ending statements with `;` is good practice:
+    ```sql
+    SELECT * FROM users;
+    ```
+  </Card>
+  <Card title="Use Backticks for Keywords" icon="grave">
+    Escape reserved words or special characters with backticks:
+    ```sql
+    SELECT `order`, `from` FROM `table-name`;
+    ```
+  </Card>
+  <Card title="Comment Your Code" icon="comment">
+    Use comments for complex queries:
+    ```sql
+    -- This is a single-line comment
+    /* This is a
+       multi-line comment */
+    SELECT * FROM users;
+    ```
+  </Card>
+</CardGroup>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Viewing Results" icon="table" href="/guide/viewing-results">
+    Learn how to interpret and work with query results
+  </Card>
+  <Card title="Managing Connections" icon="plug-circle-check" href="/guide/managing-connections">
+    Switch databases and refresh table listings
+  </Card>
+</CardGroup>
