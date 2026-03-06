@@ -1,0 +1,72 @@
+{
+  "projectType": "general",
+  "projectName": "MySQL SQL Editor",
+  "projectDescription": "A desktop GUI application for connecting to MySQL databases and executing SQL queries with a visual interface.",
+  "theme": "aspen",
+  "primaryColor": "#0078D7",
+  "lightColor": "#64B4FF",
+  "darkColor": "#005A9E",
+  "navigation": {
+    "groups": [
+      {
+        "group": "Getting Started",
+        "pages": [
+          "introduction",
+          "installation",
+          "quickstart"
+        ]
+      },
+      {
+        "group": "User Guide",
+        "pages": [
+          "guide/connecting",
+          "guide/writing-queries",
+          "guide/viewing-results",
+          "guide/managing-connections"
+        ]
+      },
+      {
+        "group": "Architecture",
+        "pages": [
+          "architecture/overview",
+          "architecture/mvc-pattern",
+          "architecture/components"
+        ]
+      },
+      {
+        "group": "Development",
+        "pages": [
+          "development/setup",
+          "development/building",
+          "development/dependencies"
+        ]
+      },
+      {
+        "group": "Reference",
+        "pages": [
+          "reference/ui-components",
+          "reference/features",
+          "reference/troubleshooting"
+        ]
+      }
+    ]
+  },
+  "keyFeatures": [
+    "MySQL database connection with authentication",
+    "Visual database and table browser",
+    "SQL query editor with execution",
+    "Tabular results display",
+    "Connection management (connect/disconnect/switch databases)",
+    "Support for SELECT and data modification queries"
+  ],
+  "publicApiSurface": [
+    "Model.conectar(String host, String database, String usuario, String password)",
+    "Model.desconectar()",
+    "Model.obtenerTodasLasBasesDatos(String host, String usuario, String password)",
+    "Model.obtenerTablasDeBaseDatos()",
+    "Model.ejecutarConsulta(String query)",
+    "Controller(View loginView, SqlEditorView editorView, Model model)",
+    "View (Login GUI)",
+    "SqlEditorView (SQL Editor GUI)"
+  ]
+}
